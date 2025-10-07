@@ -6,93 +6,59 @@
   <title>Service Coverage Planner</title>
 
   <!-- Leaflet + Leaflet.draw + Turf -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
   <style>
     :root{
-      --bg:#0b1020;
-      --panel:#11162a;
-      --muted:#96a0b5;
-      --text:#e5e7eb;
-      --accent:#7dd3fc;
-      --accent-2:#ffa94d;
-      --accent-3:#ff6d00;
-      --card:#0f152a;
-      --border:#1f2a44;
-      --error:#ef4444;
-      --ok:#22c55e;
+      --bg:#0b1020; --panel:#11162a; --muted:#96a0b5; --text:#e5e7eb; --accent:#7dd3fc;
+      --card:#0f152a; --card-2:#101734; --border:#1f2a44;
     }
     *{box-sizing:border-box}
-    html, body { height:100%; margin:0; background:var(--bg); color:var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
+    html, body { height:100%; margin:0; background:var(--bg); color:var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
     .app { display:flex; height:100%; width:100%; }
 
-    /* Sidebar (tech list) */
-    .sidebar {
-      width:360px; max-width:42vw; background:var(--panel); border-right:1px solid var(--border);
-      display:flex; flex-direction:column; padding:16px 14px; gap:12px; overflow:auto;
-    }
+    .sidebar { width:420px; max-width:46vw; background:var(--panel); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; padding:16px 14px; gap:12px; overflow:auto; }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand .logo { width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg, var(--accent), #60a5fa); display:inline-block; }
     .brand h1 { font-size:16px; margin:0; letter-spacing:0.3px; }
-    .search { display:flex; gap:8px; }
-    .search input {
-      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); outline:none;
-      background:var(--card); color:var(--text);
-    }
     .tiny { color:var(--muted); font-size:12px; }
-
-    .adder { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+    .section-title { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#b6c2db; margin:10px 2px 2px; }
+    .panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
     .row { display:flex; gap:8px; }
-    .row input, .row textarea {
+    .row input, .row textarea, .row select {
       width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border); outline:none;
-      background:#0e1430; color:var(--text);
+      background:#0e1430; color:#e5e7eb;
     }
-    .row textarea { min-height:62px; resize:vertical; }
-
-    .tech-card {
-      background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:8px;
-    }
-    .tech-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .tech-name { font-weight:600; }
-    .tech-actions { display:flex; gap:8px; }
-    .btn {
-      padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:#121a34; color:var(--text);
-      cursor:pointer; font-size:12px;
-    }
+    textarea { min-height:62px; resize:vertical; }
+    .list { display:flex; flex-direction:column; gap:8px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+    .card.active { outline:2px solid var(--accent); }
+    .item-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .item-name { font-weight:600; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn { padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:#121a34; color:#e5e7eb; cursor:pointer; font-size:12px; }
     .btn:hover{ border-color:#2a3a62; background:#0e1530; }
     .btn-primary { background:linear-gradient(135deg,#38bdf8,#60a5fa); color:#0b1020; border:none; }
     .btn-danger { background:#1a0f12; border-color:#3a1620; color:#fecaca; }
-    .btn-primary:hover{ filter:brightness(0.95); }
 
-    .zip-section { border-top:1px solid var(--border); margin-top:6px; padding-top:6px; }
-    .zip-toggle { display:flex; align-items:center; gap:8px; background:transparent; color:var(--text);
-      border:none; cursor:pointer; padding:6px 2px; width:100%; text-align:left; }
-    .zip-toggle .arrow { width:10px; height:10px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted);
-      transform: rotate(45deg); transition: transform .15s ease; margin-left:4px; }
-    .zip-section.collapsed .zip-toggle .arrow { transform: rotate(-45deg); }
-    .zip-section.collapsed .zip-list { display:none; }
-    .zip-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-    .zip-pill {
-      padding:4px 6px; border-radius:999px; background:#0e1430; border:1px solid var(--border); color:#e9edf5; font-size:12px;
-    }
-    .pill-missing { background:#311619; border-color:#5b1f27; color:#fecaca; }
+    .zip-list { display:flex; flex-wrap:wrap; gap:6px; }
+    .zip-pill { padding:4px 6px; border-radius:999px; background:#0e1430; border:1px solid var(--border); color:#e9edf5; font-size:12px; }
 
-    /* Main area: header + map + selection panel */
     .main { flex:1; display:flex; flex-direction:column; }
-    .topbar {
-      height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 16px;
-      border-bottom:1px solid var(--border); background:var(--panel);
-    }
+    .topbar { height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid var(--border); background:var(--panel); }
     .topbar .title { font-size:14px; font-weight:600; }
     .topbar .tools { display:flex; gap:10px; }
     .topbar .tools .btn { background:#101831; }
 
     .content { position:relative; flex:1; display:flex; }
     #map { flex:1; }
+
     .selection-panel {
       position:absolute; top:10px; right:10px; z-index:9999; background:rgba(17,22,42,0.96);
       border:1px solid var(--border); padding:12px; border-radius:12px; width:340px; max-height:70vh; overflow:auto;
@@ -103,42 +69,23 @@
     .selection-panel ul { margin:8px 0 0 16px; padding:0; font-size:12px; }
     .selection-panel .btn { margin-top:8px; }
 
-    /* Leaflet overrides for dark UI */
-    .leaflet-control-layers { background:#0f152a !important; color:var(--text) !important; border:1px solid var(--border) !important; }
+    #busy { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:rgba(17,22,42,0.96); border:1px solid var(--border); padding:10px 12px; border-radius:10px;
+      z-index:10000; display:none; box-shadow:0 10px 30px rgba(0,0,0,.45) }
+
+    .leaflet-control-layers { background:#0f152a !important; color:#e5e7eb !important; border:1px solid var(--border) !important; }
     .leaflet-container { background:#0a0f1f; }
     .leaflet-bar a, .leaflet-bar a:hover { background:#111a34; color:#fff; border-bottom:1px solid var(--border); }
     .leaflet-draw-toolbar { box-shadow:0 6px 18px rgba(0,0,0,.35); border-radius:8px; overflow:hidden; }
     .leaflet-draw-toolbar a { background:#111a34 !important; border:1px solid var(--border) !important; color:#e5e7eb !important; }
     .leaflet-draw-toolbar a:hover { background:#0e1530 !important; border-color:#2a3a62 !important; }
-    .leaflet-draw-actions a { background:#0e1530 !important; color:#e5e7eb !important; border:1px solid var(--border) !important; }
 
-    /* Rectangle icon inside the draw button (themed) */
-    .leaflet-draw-draw-rectangle { position: relative; }
-    .leaflet-draw-draw-rectangle::before {
-      content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 16px; height: 12px; border: 2px solid var(--accent); border-radius: 2px;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); pointer-events: none;
-    }
-    .leaflet-draw-draw-rectangle:hover::before { border-color: #60a5fa; }
-
-    /* Busy overlay */
-    #busy { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-      background:rgba(17,22,42,0.96); border:1px solid var(--border); padding:10px 12px; border-radius:10px;
-      z-index:10000; display:none; box-shadow:0 10px 30px rgba(0,0,0,.45) }
-    @keyframes bl { 0%, 80%, 100% { opacity:.25 } 40% { opacity:1 } }
-
-    /* Tech center labels (territory names) */
     .leaflet-marker-icon.tech-center-label { width:auto !important; height:auto !important; }
-    .leaflet-marker-icon.tech-center-label img { width:auto !important; height:auto !important; }
     .tech-center-label, .tech-center-label * { pointer-events: none; }
-    .tech-pill {
-      display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:999px;
-      background:rgba(10,15,25,0.85); color:#fff; border:2px solid currentColor;
-      box-shadow:0 0 0 2px rgba(255,255,255,0.70); white-space:nowrap;
-    }
+    .tech-pill { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:999px; background:rgba(10,15,25,0.85); color:#fff; border:2px solid currentColor; box-shadow:0 0 0 2px rgba(255,255,255,0.70); white-space:nowrap; }
 
     .legend { position:absolute; bottom:10px; left:10px; z-index:9999; background:rgba(17,22,42,0.96); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:12px; }
-    a { color:var(--accent); text-decoration:none; }
+    .legend .row { display:flex; align-items:center; gap:6px; margin-top:4px; }
   </style>
 </head>
 <body>
@@ -148,23 +95,33 @@
         <span class="logo"></span>
         <h1>Service Coverage Planner</h1>
       </div>
+      <div class="tiny">Manage labeled <b>Areas</b> (ZIP sets). Assign one or more Areas to each technician. <b>Areas are always visible.</b></div>
 
-      <div class="search">
-        <input id="techSearch" placeholder="Search technicians or ZIPs..." />
+      <!-- AREAS -->
+      <div class="section-title">Areas</div>
+      <div class="panel">
+        <div class="row">
+          <input id="newAreaName" placeholder="New Area name (e.g., North Route)" />
+          <button id="createArea" class="btn-primary btn">Create</button>
+        </div>
+        <div class="tiny">Click <b>Edit</b> to toggle ZIPs (or use rectangle for bulk add/remove). Areas always follow ZIP boundaries.</div>
       </div>
-      <div class="tiny">Click a tech to highlight their service area. Draw a rectangle on the map to list ZIPs and outline the union perimeter.</div>
+      <div id="areasList" class="list"></div>
 
-      <div class="adder">
+      <!-- TECHNICIANS -->
+      <div class="section-title">Technicians</div>
+      <div class="panel">
         <div class="row"><input id="addName" placeholder="Technician name" /></div>
         <div class="row"><input id="addContact" placeholder="Contact (optional)" /></div>
-        <div class="row"><textarea id="addZips" placeholder="ZIPs (comma-separated) e.g. 60452,60453,60462"></textarea></div>
+        <div class="row"><textarea id="addNotes" placeholder="Notes (optional)"></textarea></div>
+        <div class="row"><input id="addTags" placeholder="Tags (comma or space separated)" /></div>
         <div class="row">
           <button id="addTech" class="btn-primary btn">Add Technician</button>
-          <div id="addMsg" class="msg"></div>
+          <div id="addMsg" class="tiny"></div>
         </div>
       </div>
-
-      <div id="techList" class="tech-list"></div>
+      <div class="row"><input id="techSearch" placeholder="Search technicians or ZIPs..." /></div>
+      <div id="techList" class="list"></div>
     </aside>
 
     <section class="main">
@@ -172,205 +129,272 @@
         <div class="title">Illinois & Indiana ZIP Coverage (USPS-aligned)</div>
         <div class="tools">
           <button id="clearAll" class="btn">Clear Highlights</button>
-          <button id="toggleLabels" class="btn">Toggle Labels</button>
+          <button id="toggleLabels" class="btn">Toggle ZIP Labels</button>
           <button id="toggleAllTerritories" class="btn">Show All Territories</button>
-          <button id="resetTechs" class="btn">Reset Demo Data</button>
+          <button id="resetData" class="btn">Reset Demo Data</button>
         </div>
       </div>
+
       <div class="content">
         <div id="map"></div>
 
-        <div id="selectionPanel" class="selection-panel" hidden>
+        <div class="selection-panel" id="selectionPanel" hidden>
           <h3>Selected ZIPs</h3>
-          <div class="small">Drag a rectangle to select an area on the map.</div>
+          <div class="small">Drag a rectangle to list ZIPs.<br/>If editing an Area, rectangle performs bulk add/remove.</div>
           <ul id="zipList"></ul>
           <div class="row">
             <button id="copyZips" class="btn">Copy ZIPs</button>
             <button id="clearSelection" class="btn">Clear</button>
           </div>
-          <div id="copyMsg" class="msg"></div>
+          <div id="copyMsg" class="tiny"></div>
         </div>
 
         <div id="busy">
-          <span class="dot" style="display:inline-block;width:6px;height:6px;background:#7dd3fc;border-radius:50%;margin:0 2px;animation:bl 1.2s infinite"></span>
-          <span class="dot" style="display:inline-block;width:6px;height:6px;background:#7dd3fc;border-radius:50%;margin:0 2px;animation:bl 1.2s infinite .15s"></span>
-          <span class="dot" style="display:inline-block;width:6px;height:6px;background:#7dd3fc;border-radius:50%;margin:0 2px;animation:bl 1.2s infinite .3s"></span>
+          <span style="display:inline-block;width:6px;height:6px;background:#7dd3fc;border-radius:50%;margin:0 2px;animation:bl 1.2s infinite"></span>
+          <span style="display:inline-block;width:6px;height:6px;background:#7dd3fc;border-radius:50%;margin:0 2px;animation:bl 1.2s infinite .15s"></span>
+          <span style="display:inline-block;width:6px;height:6px;background:#7dd3fc;border-radius:50%;margin:0 2px;animation:bl 1.2s infinite .3s"></span>
           <span id="busyMsg" style="margin-left:6px">Processing…</span>
         </div>
 
         <div class="legend" id="legendBox">
           <div><span style="display:inline-block;width:10px;height:10px;background:#8ecae6;border:1px solid #1d3557;margin-right:6px;"></span>ZIP polygons</div>
-          <div><span style="display:inline-block;width:10px;height:3px;background:#ff6d00;margin-right:6px;"></span>Per-ZIP edges</div>
-          <div><span style="display:inline-block;width:10px;height:3px;background:#d84315;margin-right:6px;"></span>Union perimeter</div>
+          <div><span style="display:inline-block;width:10px;height:3px;background:#54d2a3;margin-right:6px;"></span>Area outlines (always visible)</div>
+          <div><span style="display:inline-block;width:10px;height:3px;background:#ff6d00;margin-right:6px;"></span>Per-ZIP edges (selection)</div>
+          <div><span style="display:inline-block;width:10px;height:3px;background:#7dd3fc;margin-right:6px;"></span>Focus outline (Area/Tech)</div>
+          <div id="areasLegendRows" style="margin-top:6px;font-weight:600">Areas</div>
+          <div id="territoryLegendRows" style="margin-top:6px;font-weight:600"></div>
         </div>
       </div>
     </section>
   </div>
 
   <script>
-  // ------------------- Default technicians (injected from Python) -------------------
-  const DEFAULT_TECHS = [{"id": 1, "name": "Alex Rivera", "contact": "(312) 555-0142", "zips": ["60452", "60453", "60462", "60463", "60477"]}, {"id": 2, "name": "Morgan Patel", "contact": "(219) 555-0184", "zips": ["46307", "46373", "46375", "46385"]}, {"id": 3, "name": "Sam Chen", "contact": "(773) 555-0111", "zips": ["60608", "60616", "60609", "60632", "60623", "60638"]}, {"id": 4, "name": "Jamie Nguyen", "contact": "(847) 555-0190", "zips": ["60007", "60008", "60016", "60018", "60056", "60025"]}, {"id": 5, "name": "Taylor Brooks", "contact": "(765) 555-0177", "zips": ["47905", "47906", "47909"]}];
+  // ----------------- Storage & Seed Data -----------------
+  const STORAGE_TECHS = "svc_techs_v7_assign_areas";
+  const STORAGE_AREAS = "svc_areas_v4_zipsets";
 
-  // State & persistence
-  const STORAGE_KEY = "svc_techs_v1";
+  const DEFAULT_TECHS = [
+    { id: 1, name: "Alex Rivera",  contact: "(312) 555-0142", notes:"", tags:[], areaIds:[1001] },
+    { id: 2, name: "Morgan Patel", contact: "(219) 555-0184", notes:"", tags:[], areaIds:[1002] },
+    { id: 3, name: "Sam Chen",     contact: "(773) 555-0111", notes:"", tags:[], areaIds:[1003] }
+  ];
+  const DEFAULT_AREAS = [
+    { id: 1001, name: "Southwest Burbs", zips: ["60452","60453","60462","60463","60477"] },
+    { id: 1002, name: "NW Indiana Core", zips: ["46307","46373","46375","46385"] },
+    { id: 1003, name: "South Loop + Midway", zips: ["60608","60616","60609","60632","60623","60638"] }
+  ];
+
   let TECHS = [];
-  function loadTechs() {
-    try { const s = localStorage.getItem(STORAGE_KEY); if (s) { const arr = JSON.parse(s); if (Array.isArray(arr)) return arr; } } catch {}
-    return DEFAULT_TECHS;
+  let AREAS = [];
+
+  function loadAll(){
+    try{ const t = JSON.parse(localStorage.getItem(STORAGE_TECHS)||"null"); TECHS = Array.isArray(t)? t : DEFAULT_TECHS; }catch{ TECHS=DEFAULT_TECHS; }
+    try{ const a = JSON.parse(localStorage.getItem(STORAGE_AREAS)||"null"); AREAS = Array.isArray(a)? a : DEFAULT_AREAS; }catch{ AREAS=DEFAULT_AREAS; }
   }
-  function saveTechs() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(TECHS)); } catch {} }
-  function resetTechs() { TECHS = DEFAULT_TECHS.slice(); saveTechs(); renderTechList(techSearch.value); if (allTerritoriesOn) buildAllTerritories(); }
+  function saveTechs(){ try{ localStorage.setItem(STORAGE_TECHS, JSON.stringify(TECHS)); }catch{} }
+  function saveAreas(){ try{ localStorage.setItem(STORAGE_AREAS, JSON.stringify(AREAS)); }catch{} }
+  function resetDemo(){ TECHS = JSON.parse(JSON.stringify(DEFAULT_TECHS)); AREAS = JSON.parse(JSON.stringify(DEFAULT_AREAS)); saveTechs(); saveAreas(); renderAll(); rebuildAllAreas(true); if(allTerritoriesOn) rebuildAllTerritories(true); }
 
-  // ------------------- Map Setup -------------------
-  const map = L.map("map", { zoomSnap: 0.5 }).setView([41.5, -88.0], 8);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-  }).addTo(map);
+  // ----------------- Map & Panes -----------------
+  const map = L.map("map", { zoomSnap:0.5 }).setView([41.5,-88.0], 8);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution:'&copy; OSM & CARTO' }).addTo(map);
 
+  // Create panes to control z-index
+  map.createPane('areasPane');        // 360 (always-visible areas)
+  map.getPane('areasPane').style.zIndex = 360;
+  map.createPane('territoriesPane');  // 350 (toggle)
+  map.getPane('territoriesPane').style.zIndex = 350;
+  map.createPane('baseZipPane');      // 340 (zip polygons)
+  map.getPane('baseZipPane').style.zIndex = 340;
+  map.createPane('selectionPane');    // 450
+  map.getPane('selectionPane').style.zIndex = 450;
+  map.createPane('focusPane');        // 500
+  map.getPane('focusPane').style.zIndex = 500;
+  map.createPane('labelPane');        // 520 (ZIP labels)
+  map.getPane('labelPane').style.zIndex = 520;
+
+  const COLORS = ["#e11d48","#22c55e","#3b82f6","#a855f7","#f59e0b","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#8b5cf6","#ef4444"];
+
+  // ZIP base layer
   const zipLayer = L.geoJSON(null, {
+    pane: 'baseZipPane',
     style: () => ({ fillColor:"#8ecae6", color:"#2b344d", weight:0.6, fillOpacity:0.10 }),
-    onEachFeature: (feature, layer) => {
-      const p = feature.properties;
+    onEachFeature: (f, layer) => {
+      const p = f.properties;
       layer.bindTooltip(`<b>${p.zip}</b> — ${p.city}, ${p.STATE}`, {direction:"top"});
+      layer.on('click', () => {
+        if (!AREA_EDIT_CTX.active) return;
+        const z = String(p.zip||""); if(!z) return;
+        const set = new Set(AREA_EDIT_CTX.area.zips);
+        if (set.has(z)) { set.delete(z); toast(`Removed ${z} from ${AREA_EDIT_CTX.area.name}`); }
+        else { set.add(z); toast(`Added ${z} to ${AREA_EDIT_CTX.area.name}`); }
+        AREA_EDIT_CTX.area.zips = Array.from(set).sort();
+        postAreaChange(AREA_EDIT_CTX.area);
+      });
     }
   }).addTo(map);
 
-  const perZipEdges   = L.geoJSON(null, { style: { color:"#ff6d00", weight:3, fillOpacity:0 }}).addTo(map);
-  const selectionFill = L.geoJSON(null, { style: { color:"#7dd3fc", weight:0, fillColor:"#7dd3fc", fillOpacity:0.05 }}).addTo(map);
-  const selectionHalo = L.geoJSON(null, { style: { color:"#ffffff", weight:7, opacity:0.85, fillOpacity:0 }}).addTo(map);
-  const unionOutline  = L.geoJSON(null, { style: { color:"#7dd3fc", weight:3, fillOpacity:0 }}).addTo(map);
-  let selectionLabel  = null;
-  let labelsLayer = L.layerGroup().addTo(map);
-  let labelsEnabled = false;
+  // Focus overlays (for View Area / View Territory)
+  const focusFill    = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#7dd3fc", weight:0, fillColor:"#7dd3fc", fillOpacity:0.10 } }).addTo(map);
+  const focusHalo    = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#ffffff", weight:7, opacity:0.9, fillOpacity:0 } }).addTo(map);
+  const focusOutline = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#7dd3fc", weight:3, opacity:1, fillOpacity:0 } }).addTo(map);
+  let focusLabel = null;
 
-  const drawControl = new L.Control.Draw({
+  // Selection overlays
+  const selPerZipEdges = L.geoJSON(null, { pane:'selectionPane', interactive:false, style:{ color:"#ff6d00", weight:3, fillOpacity:0 } }).addTo(map);
+  const selFill        = L.geoJSON(null, { pane:'selectionPane', interactive:false, style:{ color:"#7dd3fc", weight:0, fillColor:"#7dd3fc", fillOpacity:0.05 } }).addTo(map);
+  const selHalo        = L.geoJSON(null, { pane:'selectionPane', interactive:false, style:{ color:"#ffffff", weight:7, opacity:0.85 } }).addTo(map);
+  const selOutline     = L.geoJSON(null, { pane:'selectionPane', interactive:false, style:{ color:"#7dd3fc", weight:3, opacity:1 } }).addTo(map);
+  let selectionLabel = null;
+
+  // Always-visible AREAS overlay + labels
+  const allAreasOverlays = L.layerGroup([], { pane:'areasPane' }).addTo(map);
+  const allAreasLabels   = L.layerGroup([], { pane:'areasPane' }).addTo(map);
+
+  // Toggleable TECH territories
+  const allTerritoriesOverlays = L.layerGroup([], { pane:'territoriesPane' });
+  let allTerritoriesOn = false;
+
+  // ZIP labels toggle
+  const labelsLayer = L.layerGroup([], { pane:'labelPane' }).addTo(map);
+  let labelsBuilt=false, labelsEnabled=false;
+  function buildLabels(){
+    if (labelsBuilt) return; labelsBuilt=true;
+    zipLayer.eachLayer(l=>{
+      const f=l.feature; if(!f) return;
+      const c=turf.centerOfMass(f).geometry.coordinates;
+      const icon=L.divIcon({ className:"zip-label", html:`<div style="font-size:10px;color:#0b132b;text-shadow:0 0 2px #fff">${f.properties.zip}</div>` });
+      labelsLayer.addLayer(L.marker([c[1],c[0]],{icon, pane:'labelPane'}));
+    });
+  }
+  const LABEL_ZOOM=12;
+  function syncLabels(){ if(map.getZoom()>=LABEL_ZOOM && labelsEnabled){ buildLabels(); if(!map.hasLayer(labelsLayer)) map.addLayer(labelsLayer);} else { if(map.hasLayer(labelsLayer)) map.removeLayer(labelsLayer);} }
+  map.on("zoomend", syncLabels);
+  document.getElementById("toggleLabels").addEventListener("click",()=>{ labelsEnabled=!labelsEnabled; syncLabels(); });
+
+  // Rectangle draw
+  const selectionDraw = new L.Control.Draw({
     draw: { polygon:false, polyline:false, circle:false, marker:false, circlemarker:false,
       rectangle: { shapeOptions: { color:"#7dd3fc", weight:2 } } },
     edit: false
   });
-  map.addControl(drawControl);
+  map.addControl(selectionDraw);
 
-  // ------------------- Data Load (Esri Living Atlas) -------------------
+  // ----------------- Data Load -----------------
   const BASE = "https://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services/USA_ZIP_Code_Areas_anaylsis/FeatureServer/0/query";
   const IL_URL = BASE + "?where=STATE%20%3D%20'IL'&outFields=ZIP_CODE,PO_NAME,STATE&outSR=4326&f=geojson";
   const IN_URL = BASE + "?where=STATE%20%3D%20'IN'&outFields=ZIP_CODE,PO_NAME,STATE&outSR=4326&f=geojson";
-
-  function normalizeFeature(f) {
-    const p = f.properties || {};
-    p.zip = p.zip || p.ZIP_CODE || "";
-    p.city = p.city || p.PO_NAME || "";
-    f.properties = { zip: p.zip, city: p.city, STATE: p.STATE || p.state || "" };
-    return f;
-  }
+  function normalizeFeature(f){ const p=f.properties||{}; f.properties={ zip:p.zip||p.ZIP_CODE||"", city:p.city||p.PO_NAME||"", STATE:p.STATE||p.state||"" }; return f; }
 
   let zipIndex = new Map();
-  let allFeatures = [];
-  let labelsBuilt = false;
 
-  async function loadData() {
-    const [il, _in] = await Promise.all([fetch(IL_URL).then(r=>r.json()), fetch(IN_URL).then(r=>r.json())]);
+  async function loadData(){
+    const [il,_in] = await Promise.all([fetch(IL_URL).then(r=>r.json()), fetch(IN_URL).then(r=>r.json())]);
     const features = [...(il.features||[]), ...(_in.features||[])].map(normalizeFeature);
-    allFeatures = features;
-
     zipLayer.addData({ type:"FeatureCollection", features });
-    zipLayer.eachLayer(l => { const z = (l.feature.properties.zip||"").toString(); if (z) zipIndex.set(z, l); });
+    zipLayer.eachLayer(l => { const z=String(l.feature.properties.zip||""); if(z) zipIndex.set(z,l); });
+    const b = zipLayer.getBounds(); if (b.isValid()) map.fitBounds(b,{padding:[20,20]});
 
-    const b = zipLayer.getBounds();
-    if (b.isValid()) map.fitBounds(b, { padding:[20,20] });
-
-    TECHS = loadTechs();
-    renderTechList();
-    if (allTerritoriesOn) buildAllTerritories();
+    loadAll();
+    renderAll();
+    rebuildAllAreas(true); // areas are always visible
   }
-  loadData().catch(err => console.error("Data load failed", err));
+  loadData().catch(console.error);
 
-  // ------------------- Labels on Zoom -------------------
-  function buildLabels() {
-    if (labelsBuilt) return;
-    labelsBuilt = true;
-    zipLayer.eachLayer(l => {
-      const f = l.feature; if (!f) return;
-      const center = turf.centerOfMass(f).geometry.coordinates;
-      const zip = f.properties.zip;
-      const icon = L.divIcon({ className:"zip-label", html:`<div style="font-size:10px;color:#0b132b;text-shadow:0 0 2px #fff">${zip}</div>` });
-      const m = L.marker([center[1], center[0]], { icon });
-      labelsLayer.addLayer(m);
-    });
-  }
-  const LABEL_ZOOM = 12;
-  function syncLabels() {
-    if (map.getZoom() >= LABEL_ZOOM && labelsEnabled) { buildLabels(); if (!map.hasLayer(labelsLayer)) map.addLayer(labelsLayer); }
-    else { if (map.hasLayer(labelsLayer)) map.removeLayer(labelsLayer); }
-  }
-  map.on("zoomend", syncLabels);
-  document.getElementById("toggleLabels").addEventListener("click", () => {
-    labelsEnabled = !labelsEnabled; syncLabels();
-    document.getElementById("toggleLabels").textContent = labelsEnabled ? "Hide Labels" : "Show Labels";
-  });
-
-  // ------------------- Busy / perf helpers -------------------
-  const unionCache = new Map();
+  // ----------------- Helpers -----------------
   function showBusy(msg){ const el=document.getElementById('busy'); const m=document.getElementById('busyMsg'); if(m) m.textContent=msg||'Processing…'; if(el) el.style.display='block'; }
   function hideBusy(){ const el=document.getElementById('busy'); if(el) el.style.display='none'; }
+  function toast(msg){
+    const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+    Object.assign(t.style,{position:'absolute',right:'12px',bottom:'12px',zIndex:10001,background:'#0f152a',border:'1px solid var(--border)',color:'#e5e7eb',padding:'8px 10px',borderRadius:'10px',fontSize:'12px'});
+    document.body.appendChild(t); setTimeout(()=>t.remove(),1400);
+  }
   function dimBaseZips(){ zipLayer.setStyle({ color:"#3b4766", weight:0.4, fillOpacity:0.06 }); }
-  function restoreBaseZips(){ zipLayer.setStyle({ color:"#2b344d", weight:0.6, fillOpacity:0.10 }); }
+  function restoreBaseZips(){ zipLayer.setStyle({ color:"#2b344d", weight:0.6, fillOpacity:0.10 }); refreshZipStyles(); }
 
-  async function unionMany(features, batch=40){
-    if(!features.length) return null;
-    let acc = features[0];
-    for (let i=1;i<features.length;i++){
-      try { acc = turf.union(acc, features[i]); } catch(e){ console.warn('union error', e); }
-      if (i % batch === 0) await new Promise(r=>setTimeout(r));
-    }
-    return acc;
+  function featuresForZips(zips){
+    const feats=[]; (zips||[]).forEach(z=>{ const l=zipIndex.get(String(z)); if(l) feats.push(l.feature); });
+    return feats;
   }
 
-  async function computeTechUnion(tech){
-    const key = `${tech.id}:${tech.zips.join('|')}`;
-    if (unionCache.has(key)) return unionCache.get(key);
-    const feats = [];
-    tech.zips.forEach(z => { const layer = zipIndex.get(z); if (layer) feats.push(layer.feature); });
-    if (!feats.length) return null;
-    showBusy(`Building ${tech.name}…`);
-    let u = await unionMany(feats, 30);
-    try { const tol = Math.min(0.002, 0.0006 + feats.length * 0.000004); u = turf.simplify(u, { tolerance: tol, highQuality: true }); } catch(e) {}
-    unionCache.set(key, u);
-    hideBusy();
-    return u;
+  // Robust union
+  function unionOfFeatures(feats){
+    if (!feats || !feats.length) return null;
+    const list = feats.slice();
+    function safeUnion(a, b){ try { return turf.union(a, b); } catch { return a || b; } }
+    const CHUNK = 25, chunks=[];
+    for (let i=0;i<list.length;i+=CHUNK){ let acc=list[i]; for(let j=i+1;j<Math.min(i+CHUNK,list.length);j++){ acc=safeUnion(acc,list[j]); } chunks.push(acc); }
+    let u = chunks[0]; for (let k=1;k<chunks.length;k++){ u=safeUnion(u,chunks[k]); }
+    try { if (turf.cleanCoords) u=turf.cleanCoords(u); } catch {}
+    try { u=turf.simplify(u,{tolerance:0.001, highQuality:true}); } catch {}
+    return u || null;
   }
 
-  // ------------------- Rectangle Selection -------------------
+  // ----------------- Focus Rendering -----------------
+  const cache = { areaUnion:new Map(), techUnion:new Map() };
+
+  function areaUnion(area){
+    const key = `${area.id}:${(area.zips||[]).join(',')}`;
+    if (cache.areaUnion.has(key)) return cache.areaUnion.get(key);
+    const u = unionOfFeatures(featuresForZips(area.zips||[]));
+    cache.areaUnion.set(key,u); return u;
+  }
+  function techUnion(tech){
+    const key = `${tech.id}:${(tech.areaIds||[]).join('|')}::${(tech.areaIds||[]).map(id=>AREAS.find(a=>a.id===id)?.zips?.join(',')||'').join('|')}`;
+    if (cache.techUnion.has(key)) return cache.techUnion.get(key);
+    const feats=[]; (tech.areaIds||[]).forEach(id=>{ const a=AREAS.find(x=>x.id===id); if(a) feats.push(...featuresForZips(a.zips)); });
+    const u = unionOfFeatures(feats);
+    cache.techUnion.set(key,u); return u;
+  }
+  function colorForTech(tech){ const idx = TECHS.findIndex(t=>t.id===tech.id); return COLORS[idx>=0?idx%COLORS.length:0]; }
+
+  function clearFocus(){
+    focusFill.clearLayers(); focusHalo.clearLayers(); focusOutline.clearLayers();
+    if (focusLabel){ map.removeLayer(focusLabel); focusLabel=null; }
+  }
+  function clearSelection(){
+    selPerZipEdges.clearLayers(); selFill.clearLayers(); selHalo.clearLayers(); selOutline.clearLayers();
+    if (selectionLabel){ map.removeLayer(selectionLabel); selectionLabel=null; }
+  }
+
+  function renderFocusFeature(u, labelText, color){
+    clearSelection(); clearFocus();
+    if (!u) { restoreBaseZips(); return; }
+    focusFill.setStyle({ color, fillColor: color, weight: 0, fillOpacity: 0.10 });
+    focusFill.addData(u);
+    try { const line=turf.polygonToLine(u); focusHalo.addData(line); focusOutline.setStyle({ color, weight:3, opacity:1 }); focusOutline.addData(line); }
+    catch { focusHalo.addData(u); focusOutline.setStyle({ color, weight:3, opacity:1 }); focusOutline.addData(u); }
+    try {
+      const c=turf.centerOfMass(u).geometry.coordinates;
+      const icon=L.divIcon({ className:"tech-center-label", iconSize:null, html:`<div class="tech-pill" style="color:${color}">${labelText}</div>` });
+      focusLabel=L.marker([c[1],c[0]],{icon, pane:'focusPane'}).addTo(map);
+    } catch {}
+    dimBaseZips();
+    let b=focusOutline.getBounds(); if(!b||!b.isValid()){ try{ b=focusFill.getBounds(); }catch{} } if(b&&b.isValid()) map.fitBounds(b,{padding:[20,20]});
+  }
+
+  // ----------------- Selection Panel -----------------
   const selectionPanel = document.getElementById("selectionPanel");
   const zipListEl = document.getElementById("zipList");
-  const clearSelectionBtn = document.getElementById("clearSelection");
   const copyZipsBtn = document.getElementById("copyZips");
+  const clearSelectionBtn = document.getElementById("clearSelection");
   const copyMsg = document.getElementById("copyMsg");
   let lastSelectionZips = [];
 
-  function clearSelectionLayers() {
-    perZipEdges.clearLayers();
-    selectionFill.clearLayers();
-    selectionHalo.clearLayers();
-    unionOutline.clearLayers();
-    if (selectionLabel) { map.removeLayer(selectionLabel); selectionLabel = null; }
-    zipListEl.innerHTML = "";
-    selectionPanel.hidden = true;
-    lastSelectionZips = [];
-    if (copyMsg) { copyMsg.textContent = ""; copyMsg.className = "msg"; }
-    if (!allTerritoriesOn) restoreBaseZips();
-  }
-  clearSelectionBtn.addEventListener("click", clearSelectionLayers);
+  copyZipsBtn.addEventListener("click", async ()=>{
+    if (!lastSelectionZips.length){ copyMsg.textContent="No ZIPs."; return; }
+    try{ await navigator.clipboard.writeText(lastSelectionZips.join(",")); copyMsg.textContent=`Copied ${lastSelectionZips.length} ZIPs.`; }
+    catch{ copyMsg.textContent="Copy failed."; }
+  });
+  clearSelectionBtn.addEventListener("click", ()=>{
+    selectionPanel.hidden=true; lastSelectionZips=[]; copyMsg.textContent="";
+    clearSelection(); restoreBaseZips();
+  });
 
-  async function copySelectionZips(){
-    if (!lastSelectionZips.length){ copyMsg.textContent = "No ZIPs to copy."; copyMsg.className="msg err"; return; }
-    const text = lastSelectionZips.join(",");
-    try { await navigator.clipboard.writeText(text); copyMsg.textContent = `Copied ${lastSelectionZips.length} ZIP${lastSelectionZips.length>1?"s":""} to clipboard.`; copyMsg.className="msg ok"; }
-    catch(e){ try { const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); copyMsg.textContent = `Copied ${lastSelectionZips.length} ZIP${lastSelectionZips.length>1?"s":""} to clipboard.`; copyMsg.className="msg ok"; } catch(e2){ copyMsg.textContent="Copy failed."; copyMsg.className="msg err"; } }
-  }
-  copyZipsBtn.addEventListener("click", copySelectionZips);
+  const AREA_EDIT_CTX = { active:false, area:null, mode:"add" }; // "add"|"remove"
 
-  map.on(L.Draw.Event.CREATED, async e => {
-    if (e.layerType !== "rectangle") return;
+  map.on(L.Draw.Event.CREATED, e=>{
+    if (e.layerType!=="rectangle") return;
     const b = e.layer.getBounds();
     const rectPoly = turf.polygon([[
       [b.getWest(), b.getSouth()],
@@ -379,266 +403,303 @@
       [b.getWest(), b.getNorth()],
       [b.getWest(), b.getSouth()]
     ]]);
-
-    const hits = [];
-    showBusy('Selecting…');
-    zipLayer.eachLayer(l => {
-      const f = l.feature;
-      const bb = l.getBounds ? l.getBounds() : null;
-      if (bb) {
-        if (bb.getEast() < b.getWest() || bb.getWest() > b.getEast() || bb.getNorth() < b.getSouth() || bb.getSouth() > b.getNorth()) return;
-      }
-      try { if (turf.booleanIntersects(f, rectPoly)) hits.push(f); } catch {}
+    const hits=[];
+    zipLayer.eachLayer(l=>{
+      const f=l.feature; const bb=l.getBounds?.();
+      if (bb && (bb.getEast()<b.getWest() || bb.getWest()>b.getEast() || bb.getNorth()<b.getSouth() || bb.getSouth()>b.getNorth())) return;
+      try{ if (turf.booleanIntersects(f,rectPoly)) hits.push(f); }catch{}
     });
+    const zips = Array.from(new Set(hits.map(h=>h.properties.zip))).sort();
 
-    zipListEl.innerHTML = "";
-    const zips = Array.from(new Set(hits.map(h => h.properties.zip))).sort();
+    if (AREA_EDIT_CTX.active) {
+      const set = new Set(AREA_EDIT_CTX.area.zips);
+      if (AREA_EDIT_CTX.mode==="remove"){ zips.forEach(z=>set.delete(z)); }
+      else { zips.forEach(z=>set.add(z)); }
+      AREA_EDIT_CTX.area.zips = Array.from(set).sort();
+      postAreaChange(AREA_EDIT_CTX.area);
+      toast(`${AREA_EDIT_CTX.mode==="remove"?"Removed":"Added"} ${zips.length} ZIPs for ${AREA_EDIT_CTX.area.name}`);
+      return;
+    }
+
+    // Normal selection panel display
+    zipListEl.innerHTML="";
+    zips.forEach(z=>{
+      const f=zipIndex.get(z)?.feature?.properties;
+      const li=document.createElement("li"); li.textContent = f? `${f.zip} — ${f.city} (${f.STATE})` : z;
+      zipListEl.appendChild(li);
+    });
     lastSelectionZips = zips;
-    hits.map(h => h.properties).sort((a,b)=>a.zip.localeCompare(b.zip)).forEach(p => {
-      const li = document.createElement("li"); li.textContent = `${p.zip} — ${p.city} (${p.STATE})`; zipListEl.appendChild(li);
-    });
-    selectionPanel.hidden = hits.length === 0;
-    if (copyMsg) { copyMsg.textContent = zips.length ? `Found ${zips.length} ZIP${zips.length>1?"s":""}.` : ""; copyMsg.className = zips.length ? "msg ok" : "msg"; }
-    if (zips.length) dimBaseZips();
+    selectionPanel.hidden = !zips.length;
 
-    perZipEdges.clearLayers();
-    selectionFill.clearLayers(); selectionHalo.clearLayers(); unionOutline.clearLayers();
-    if (selectionLabel) { map.removeLayer(selectionLabel); selectionLabel = null; }
-
-    const edgeFeatures = [];
-    const BIG = 180;
-    if (hits.length <= BIG) {
-      hits.forEach(f => { try { const line = turf.polygonToLine(f); if (line.type === "FeatureCollection") edgeFeatures.push(...line.features); else edgeFeatures.push(line); } catch {} });
-      perZipEdges.addData({ type:"FeatureCollection", features: edgeFeatures });
+    // draw selection overlays
+    clearSelection();
+    if (zips.length){
+      const edgeFeatures=[];
+      if (hits.length<=180){ hits.forEach(f=>{ try{ const line=turf.polygonToLine(f); if(line.type==="FeatureCollection") edgeFeatures.push(...line.features); else edgeFeatures.push(line);}catch{} }); selPerZipEdges.addData({type:"FeatureCollection", features:edgeFeatures}); }
+      let u=unionOfFeatures(hits);
+      selFill.addData(u);
+      try{ const line=turf.polygonToLine(u); selHalo.addData(line); selOutline.addData(line); }
+      catch{ selHalo.addData(u); selOutline.addData(u); }
+      try{ const c=turf.centerOfMass(u).geometry.coordinates; const icon=L.divIcon({ className:"tech-center-label", iconSize:null, html:`<div class='tech-pill' style='color:#7dd3fc'>Selection (${zips.length})</div>` }); selectionLabel=L.marker([c[1],c[0]],{icon, pane:'selectionPane'}).addTo(map);}catch{}
+      dimBaseZips();
+      const bb = selOutline.getBounds(); if(bb.isValid()) map.fitBounds(bb,{padding:[20,20]});
     }
-
-    if (hits.length) {
-      showBusy(`Computing union (${hits.length} ZIPs)…`);
-      let u = await unionMany(hits, 40);
-      try { const tol = Math.min(0.002, 0.0006 + hits.length * 0.000004); u = turf.simplify(u, { tolerance: tol, highQuality: true }); } catch {}
-      selectionFill.setStyle({ color:'#7dd3fc', fillColor:'#7dd3fc', weight:0, fillOpacity:0.05 });
-      selectionFill.addData(u);
-      try { const line = turf.polygonToLine(u); selectionHalo.addData(line); unionOutline.setStyle({ color: '#7dd3fc', weight:3, opacity:1 }); unionOutline.addData(line); }
-      catch { selectionHalo.addData(u); unionOutline.setStyle({ color: '#7dd3fc', weight:3, opacity:1 }); unionOutline.addData(u); }
-      try { const c = turf.centerOfMass(u).geometry.coordinates; const icon = L.divIcon({ className:'tech-center-label', iconSize: null, html:`<div class='tech-pill' style='color:#7dd3fc'>Selection (${zips.length})</div>` }); selectionLabel = L.marker([c[1], c[0]], { icon }).addTo(map); } catch {}
-      const ub = unionOutline.getBounds(); if (ub.isValid()) map.fitBounds(ub, { padding:[20,20] });
-    }
-    hideBusy();
   });
 
-  // ------------------- Technician CRUD + Interactions -------------------
+  // ----------------- UI: Areas -----------------
+  const areasListEl = document.getElementById("areasList");
+  const newAreaName = document.getElementById("newAreaName");
+  document.getElementById("createArea").addEventListener("click", ()=>{
+    const nm=(newAreaName.value||"").trim() || "New Area";
+    const area = { id: Date.now()+Math.random(), name:nm, zips:[] };
+    AREAS.push(area); saveAreas(); newAreaName.value="";
+    renderAreas(); setAreaEdit(area, true);
+    toast(`Area "${area.name}" created — click ZIPs or drag rectangle to add.`);
+    rebuildAllAreas(true);
+  });
+
+  function renderAreas(){
+    areasListEl.innerHTML="";
+    AREAS.forEach(a=>{
+      const card=document.createElement("div"); card.className="card";
+      if (AREA_EDIT_CTX.active && AREA_EDIT_CTX.area?.id===a.id) card.classList.add("active");
+      const head=document.createElement("div"); head.className="item-header";
+
+      const left=document.createElement("div"); left.style.display="flex"; left.style.alignItems="center"; left.style.gap="8px";
+      const sw=document.createElement("span"); sw.style.cssText=`display:inline-block;width:12px;height:12px;border-radius:3px;background:#54d2a3;`;
+      const nm=document.createElement("span"); nm.className="item-name"; nm.textContent=a.name;
+      const meta=document.createElement("span"); meta.className="tiny"; meta.textContent=`${a.zips.length} ZIPs`;
+      left.append(sw,nm,meta);
+
+      const actions=document.createElement("div"); actions.className="actions";
+      const bView=document.createElement("button"); bView.className="btn"; bView.textContent="View";
+      const bEdit=document.createElement("button"); bEdit.className="btn"; bEdit.textContent=(AREA_EDIT_CTX.active && AREA_EDIT_CTX.area?.id===a.id)?"Editing…":"Edit";
+      const bCopy=document.createElement("button"); bCopy.className="btn"; bCopy.textContent="Copy ZIPs";
+      const bRename=document.createElement("button"); bRename.className="btn"; bRename.textContent="Rename";
+      const bDel=document.createElement("button"); bDel.className="btn btn-danger"; bDel.textContent="Delete";
+      actions.append(bView,bEdit,bCopy,bRename,bDel);
+
+      head.append(left,actions); card.appendChild(head);
+
+      // edit toolbelt
+      const tb=document.createElement("div"); tb.className="row"; tb.style.display=(AREA_EDIT_CTX.active && AREA_EDIT_CTX.area?.id===a.id)?"flex":"none";
+      const modeAdd=document.createElement("button"); modeAdd.className="btn"; modeAdd.textContent="Bulk: Add";
+      const modeRem=document.createElement("button"); modeRem.className="btn"; modeRem.textContent="Bulk: Remove";
+      const hint=document.createElement("div"); hint.className="tiny"; hint.textContent="Click ZIPs to toggle; drag rectangle to bulk add/remove.";
+      tb.append(modeAdd,modeRem,hint);
+      card.appendChild(tb);
+
+      bView.addEventListener("click", ()=>{ setAreaEdit(null,false); renderAreaFocus(a); });
+      bEdit.addEventListener("click", ()=>{
+        const activeNow = AREA_EDIT_CTX.active && AREA_EDIT_CTX.area?.id===a.id;
+        if (activeNow) setAreaEdit(null,false);
+        else setAreaEdit(a,true);
+      });
+      bCopy.addEventListener("click", ()=> copyToClipboard(a.zips, `${a.name}`));
+      bRename.addEventListener("click", ()=>{
+        const nn=prompt("Area name:", a.name||"Area"); if(!nn) return;
+        a.name=nn.trim(); saveAreas(); renderAreas(); rebuildAllAreas();
+        if (focusLabel) renderAreaFocus(a);
+      });
+      bDel.addEventListener("click", ()=>{
+        if(!confirm(`Delete area "${a.name}"?`)) return;
+        TECHS.forEach(t=>{ t.areaIds = (t.areaIds||[]).filter(id=>id!==a.id); });
+        AREAS = AREAS.filter(x=>x.id!==a.id); saveAreas(); saveTechs();
+        setAreaEdit(null,false); clearFocus(); renderAll(); rebuildAllAreas(true); if(allTerritoriesOn) rebuildAllTerritories(true);
+      });
+      modeAdd.addEventListener("click", ()=>{ AREA_EDIT_CTX.mode="add"; toast("Bulk mode: Add"); });
+      modeRem.addEventListener("click", ()=>{ AREA_EDIT_CTX.mode="remove"; toast("Bulk mode: Remove"); });
+
+      areasListEl.appendChild(card);
+    });
+  }
+
+  function renderAreaFocus(area){
+    const u = areaUnion(area);
+    renderFocusFeature(u, area.name, "#7dd3fc");
+  }
+
+  function setAreaEdit(areaOrNull, enable){
+    if (!enable){ AREA_EDIT_CTX.active=false; AREA_EDIT_CTX.area=null; AREA_EDIT_CTX.mode="add"; restoreBaseZips(); renderAreas(); return; }
+    AREA_EDIT_CTX.active=true;
+    AREA_EDIT_CTX.area=areaOrNull;
+    AREA_EDIT_CTX.mode="add";
+    renderAreas();
+    renderAreaFocus(areaOrNull);
+    refreshZipStyles(); // emphasize selected zips in this area
+  }
+
+  // Emphasize assigned ZIPs while editing this area
+  function refreshZipStyles(){
+    const edit = AREA_EDIT_CTX.active ? AREA_EDIT_CTX.area : null;
+    zipLayer.eachLayer(l=>{
+      const z=String(l.feature?.properties?.zip||"");
+      if (edit && edit.zips.includes(z)){
+        l.setStyle({ fillOpacity:0.28, color:"#2b344d", weight:0.9 });
+      } else {
+        l.setStyle({ fillOpacity:0.10, color:"#2b344d", weight:0.6 });
+      }
+    });
+  }
+
+  function postAreaChange(area){
+    cache.areaUnion.clear(); cache.techUnion.clear();
+    saveAreas(); renderAreas(); refreshZipStyles();
+    rebuildAllAreas();
+    if (allTerritoriesOn) rebuildAllTerritories();
+    if (focusLabel) renderAreaFocus(area);
+  }
+
+  function copyToClipboard(list, label){
+    const text=(list||[]).join(",");
+    navigator.clipboard.writeText(text).then(()=>toast(`Copied ${list.length} ZIPs for ${label}`)).catch(()=>toast("Copy failed"));
+  }
+
+  // ----------------- UI: Techs -----------------
   const techListEl = document.getElementById("techList");
   const techSearch = document.getElementById("techSearch");
   const addName = document.getElementById("addName");
   const addContact = document.getElementById("addContact");
-  const addZips = document.getElementById("addZips");
+  const addNotes = document.getElementById("addNotes");
+  const addTags  = document.getElementById("addTags");
   const addBtn = document.getElementById("addTech");
   const addMsg = document.getElementById("addMsg");
-  const resetBtn = document.getElementById("resetTechs");
 
-  function parseZips(text) {
-    // Split on commas/whitespace, extract first 5-digit sequence from each token
-    const uniq = Array.from(new Set(
-      (text || "")
-        .split(/[,\s]+/)
-        .map(s => { const m = s.match(/\d{5}/); return m ? m[0] : null; })
-        .filter(Boolean)
-    )).sort();
-    return uniq;
+  addBtn.addEventListener("click", ()=>{
+    const name=addName.value.trim(); const contact=addContact.value.trim();
+    const notes=(addNotes.value||"").trim(); const tags=parseTags(addTags.value);
+    if(!name){ addMsg.textContent="Name is required."; return; }
+    const id=Date.now()+Math.random(); TECHS.push({id,name,contact,notes,tags,areaIds:[]}); saveTechs();
+    addMsg.textContent="Technician added."; addName.value=""; addContact.value=""; addNotes.value=""; addTags.value="";
+    renderTechs(); if(allTerritoriesOn) rebuildAllTerritories(true);
+  });
+
+  function parseTags(text){ const raw=(text||"").trim(); if(!raw) return []; return Array.from(new Set(raw.split(/[,\s]+/).map(s=>s.trim()).filter(Boolean))); }
+  function derivedZipsForTech(t){
+    const set=new Set();
+    (t.areaIds||[]).forEach(id=>{ const a=AREAS.find(x=>x.id===id); (a?.zips||[]).forEach(z=>set.add(z)); });
+    return Array.from(set).sort();
   }
 
-  function addTech() {
-    const name = addName.value.trim();
-    const contact = addContact.value.trim();
-    const zips = parseZips(addZips.value);
-    if (!name) { addMsg.textContent = "Name is required."; addMsg.className = "msg err"; return; }
-    if (!zips.length) { addMsg.textContent = "Enter at least one valid 5-digit ZIP."; addMsg.className = "msg err"; return; }
-    const id = Date.now();
-    TECHS.push({ id, name, contact, zips });
-    saveTechs();
-    addMsg.textContent = "Technician added."; addMsg.className = "msg ok";
-    addName.value = ""; addContact.value = ""; addZips.value = "";
-    renderTechList(techSearch.value);
-    if (allTerritoriesOn) buildAllTerritories();
-  }
-  addBtn.addEventListener("click", addTech);
-  resetBtn.addEventListener("click", resetTechs);
-  document.getElementById("clearAll").addEventListener("click", () => { clearSelectionLayers(); clearTechHighlight(); });
+  function renderTechs(){
+    techListEl.innerHTML="";
+    const q=(techSearch.value||"").trim().toLowerCase();
+    TECHS.forEach(t=>{
+      const zips=derivedZipsForTech(t);
+      const matches = !q || t.name.toLowerCase().includes(q) || zips.some(z=>z.includes(q));
+      if(!matches) return;
 
-  async function highlightTechArea(tech) {
-    const feats = [];
-    tech.zips.forEach(z => { const layer = zipIndex.get(z); if (layer) feats.push(layer.feature); });
+      const card=document.createElement("div"); card.className="card";
+      const head=document.createElement("div"); head.className="item-header";
 
-    // Draw per-zip edges (skip for huge)
-    perZipEdges.clearLayers();
-    const edgeFeatures = [];
-    const BIG = 180;
-    if (feats.length && feats.length <= BIG) {
-      feats.forEach(f => { try { const line = turf.polygonToLine(f); if (line.type === "FeatureCollection") edgeFeatures.push(...line.features); else edgeFeatures.push(line); } catch {} });
-      perZipEdges.addData({ type:"FeatureCollection", features: edgeFeatures });
-    }
+      const left=document.createElement("div"); left.style.display="flex"; left.style.alignItems="center"; left.style.gap="8px";
+      const sw=document.createElement("span"); sw.style.cssText=`display:inline-block;width:12px;height:12px;border-radius:3px;background:${colorForTech(t)};`;
+      const nm=document.createElement("span"); nm.className="item-name"; nm.textContent=t.name;
+      const meta=document.createElement("span"); meta.className="tiny"; meta.textContent=`${zips.length} ZIPs from ${t.areaIds.length} area${t.areaIds.length===1?"":"s"}`;
+      left.append(sw,nm,meta);
 
-    // Compute union (cached + simplified) and draw fill+halo+outline+label
-    selectionFill.clearLayers(); selectionHalo.clearLayers(); unionOutline.clearLayers();
-    if (selectionLabel) { map.removeLayer(selectionLabel); selectionLabel = null; }
-    showBusy(`Building ${tech.name}…`);
-    const u = await computeTechUnion(tech);
-    hideBusy();
-    if (!u) return;
-    const idx = TECHS.findIndex(x => x.id === tech.id);
-    const color = COLORS[(idx >= 0 ? idx : 0) % COLORS.length];
+      const actions=document.createElement("div"); actions.className="actions";
+      const bView=document.createElement("button"); bView.className="btn"; bView.textContent="View Territory";
+      const bCopy=document.createElement("button"); bCopy.className="btn"; bCopy.textContent="Copy ZIPs";
+      const bDel=document.createElement("button"); bDel.className="btn btn-danger"; bDel.textContent="Delete";
+      actions.append(bView,bCopy,bDel);
 
-    selectionFill.setStyle({ color: color, fillColor: color, weight:0, fillOpacity:0.05 });
-    selectionFill.addData(u);
+      head.append(left,actions); card.appendChild(head);
+      if (t.contact){ const c=document.createElement("div"); c.className="tiny"; c.textContent=t.contact; card.appendChild(c); }
+      if (t.notes){ const n=document.createElement("div"); n.className="tiny"; n.textContent=`Notes: ${t.notes}`; card.appendChild(n); }
 
-    try { const line = turf.polygonToLine(u); selectionHalo.addData(line); unionOutline.setStyle({ color: color, weight:3, opacity:1 }); unionOutline.addData(line); }
-    catch { selectionHalo.addData(u); unionOutline.setStyle({ color: color, weight:3, opacity:1 }); unionOutline.addData(u); }
-
-    try { const c = turf.centerOfMass(u).geometry.coordinates; const icon = L.divIcon({ className:"tech-center-label", iconSize: null, html:`<div class="tech-pill" style="color:${color}">${tech.name}</div>` }); selectionLabel = L.marker([c[1], c[0]], { icon }).addTo(map); } catch {}
-
-    dimBaseZips();
-    const ub = unionOutline.getBounds(); if (ub.isValid()) map.fitBounds(ub, { padding:[20,20] });
-  }
-
-  function clearTechHighlight() {
-    perZipEdges.clearLayers();
-    selectionFill.clearLayers();
-    selectionHalo.clearLayers();
-    unionOutline.clearLayers();
-    if (selectionLabel) { map.removeLayer(selectionLabel); selectionLabel = null; }
-    if (!allTerritoriesOn) restoreBaseZips();
-  }
-
-  function renderTechList(filter="") {
-    techListEl.innerHTML = "";
-    const q = filter ? filter.trim().toLowerCase() : "";
-    TECHS.forEach(t => {
-      const matches = !q || t.name.toLowerCase().includes(q) || t.zips.some(z => z.includes(q));
-      if (!matches) return;
-
-      const card = document.createElement("div"); card.className = "tech-card";
-      const header = document.createElement("div"); header.className = "tech-header";
-      const name = document.createElement("div"); name.className = "tech-name"; name.textContent = t.name;
-      const actions = document.createElement("div"); actions.className = "tech-actions";
-      const btnView = document.createElement("button"); btnView.className = "btn-primary btn"; btnView.textContent = "View Area";
-      const btnEdit = document.createElement("button"); btnEdit.className = "btn"; btnEdit.textContent = "Edit";
-      const btnDelete = document.createElement("button"); btnDelete.className = "btn btn-danger"; btnDelete.textContent = "Delete";
-      actions.appendChild(btnView); actions.appendChild(btnEdit); actions.appendChild(btnDelete);
-      header.appendChild(name); header.appendChild(actions);
-      card.appendChild(header);
-
-      if (t.contact) { const contact = document.createElement("div"); contact.className = "tiny"; contact.textContent = t.contact; card.appendChild(contact); }
-
-      // Collapsible ZIP section
-      const zipSection = document.createElement("div"); zipSection.className = "zip-section collapsed";
-      const zipToggle = document.createElement("button"); zipToggle.className = "zip-toggle"; zipToggle.setAttribute("aria-expanded","false");
-      zipToggle.innerHTML = `<span class="arrow"></span><span>ZIPs</span> <span class="tiny">(${t.zips.length})</span>`;
-      const zipWrap = document.createElement("div"); zipWrap.className = "zip-list";
-      t.zips.forEach(z => { const pill = document.createElement("span"); pill.className = "zip-pill"; pill.textContent = z; if (!zipIndex.has(z)) pill.classList.add("pill-missing"); zipWrap.appendChild(pill); });
-      zipSection.appendChild(zipToggle); zipSection.appendChild(zipWrap); card.appendChild(zipSection);
-      zipToggle.addEventListener("click", () => { const isCollapsed = zipSection.classList.toggle("collapsed"); zipToggle.setAttribute("aria-expanded", String(!isCollapsed)); });
-
-      // Inline edit panel
-      const edit = document.createElement("div"); edit.className = "edit-panel"; edit.style.display="none"; edit.style.gap="8px";
-      const inName = document.createElement("input"); inName.placeholder = "Name"; inName.value = t.name;
-      const inContact = document.createElement("input"); inContact.placeholder = "Contact"; inContact.value = t.contact || "";
-      const inZips = document.createElement("textarea"); inZips.placeholder = "ZIPs (comma-separated)"; inZips.value = t.zips.join(",");
-      const rowA = document.createElement("div"); rowA.className = "row"; rowA.appendChild(inName);
-      const rowB = document.createElement("div"); rowB.className = "row"; rowB.appendChild(inContact);
-      const rowC = document.createElement("div"); rowC.className = "row"; rowC.appendChild(inZips);
-      const rowD = document.createElement("div"); rowD.className = "row";
-      const btnSave = document.createElement("button"); btnSave.className = "btn-primary btn"; btnSave.textContent = "Save";
-      const btnCancel = document.createElement("button"); btnCancel.className = "btn"; btnCancel.textContent = "Cancel";
-      const msg = document.createElement("div"); msg.className = "msg"; msg.style.alignSelf = "center";
-      rowD.appendChild(btnSave); rowD.appendChild(btnCancel); rowD.appendChild(msg);
-      edit.appendChild(rowA); edit.appendChild(rowB); edit.appendChild(rowC); edit.appendChild(rowD);
-      card.appendChild(edit);
-
-      // Handlers
-      btnView.addEventListener("click", () => highlightTechArea(t));
-      btnEdit.addEventListener("click", () => { edit.style.display = (edit.style.display === "none" ? "flex" : "none"); msg.textContent = ""; });
-      btnCancel.addEventListener("click", () => { edit.style.display = "none"; inName.value = t.name; inContact.value = t.contact || ""; inZips.value = t.zips.join(","); msg.textContent = ""; });
-      btnSave.addEventListener("click", () => {
-        const newName = inName.value.trim();
-        const newContact = inContact.value.trim();
-        const newZips = parseZips(inZips.value);
-        if (!newName) { msg.textContent = "Name is required."; msg.className="msg err"; return; }
-        if (!newZips.length) { msg.textContent = "Enter at least one valid 5-digit ZIP."; msg.className="msg err"; return; }
-        t.name = newName; t.contact = newContact; t.zips = newZips;
-        saveTechs();
-        msg.textContent = "Saved."; msg.className="msg ok";
-        renderTechList(techSearch.value);
-        if (allTerritoriesOn) buildAllTerritories();
+      // Area multi-select
+      const assignRow=document.createElement("div"); assignRow.className="row";
+      const sel=document.createElement("select"); sel.multiple=true; sel.size= Math.min(8, Math.max(3, AREAS.length));
+      AREAS.forEach(a=>{
+        const opt=document.createElement("option"); opt.value=String(a.id); opt.textContent=`${a.name} (${a.zips.length})`;
+        if (t.areaIds.includes(a.id)) opt.selected=true;
+        sel.appendChild(opt);
       });
-      btnDelete.addEventListener("click", () => {
-        if (!confirm(`Delete ${t.name}?`)) return;
-        TECHS = TECHS.filter(x => x.id !== t.id);
-        saveTechs();
-        renderTechList(techSearch.value);
-        if (allTerritoriesOn) buildAllTerritories();
+      const saveBtn=document.createElement("button"); saveBtn.className="btn-primary btn"; saveBtn.textContent="Save Areas";
+      assignRow.append(sel, saveBtn); card.appendChild(assignRow);
+
+      // ZIP summary
+      const zipRow=document.createElement("div"); zipRow.className="zip-list";
+      zips.slice(0,60).forEach(z=>{ const pill=document.createElement("span"); pill.className="zip-pill"; pill.textContent=z; zipRow.appendChild(pill); });
+      if (zips.length>60){ const more=document.createElement("span"); more.className="tiny"; more.textContent=` +${zips.length-60} more`; zipRow.appendChild(more); }
+      card.appendChild(zipRow);
+
+      bView.addEventListener("click", ()=>{ const u=techUnion(t); renderFocusFeature(u, t.name, colorForTech(t)); });
+      bCopy.addEventListener("click", ()=> copyToClipboard(zips, t.name));
+      bDel.addEventListener("click", ()=>{
+        if(!confirm(`Delete ${t.name}?`)) return;
+        TECHS = TECHS.filter(x=>x.id!==t.id); saveTechs(); renderTechs(); clearFocus(); if(allTerritoriesOn) rebuildAllTerritories();
+      });
+      saveBtn.addEventListener("click", ()=>{
+        const ids = Array.from(sel.selectedOptions).map(o=>Number(o.value));
+        t.areaIds = ids; saveTechs(); cache.techUnion.clear(); renderTechs(); if(allTerritoriesOn) rebuildAllTerritories(true);
+        toast(`Saved areas for ${t.name}`);
       });
 
       techListEl.appendChild(card);
     });
   }
 
-  techSearch.addEventListener("input", e => renderTechList(e.target.value));
+  techSearch.addEventListener("input", renderTechs);
 
-  // ------------------- All Territories Overlay (multi-view) -------------------
-  const COLORS = ["#e11d48","#22c55e","#3b82f6","#a855f7","#f59e0b","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#8b5cf6","#ef4444"];
-  let allTerritoriesOn = false;
-  const allTechOverlays = L.layerGroup();
-
-  async function buildAllTerritories(){
-    showBusy("Building territories…");
-    allTechOverlays.clearLayers();
-    const legend = document.getElementById("legendBox");
-    const old = document.getElementById("territoryLegend"); if (old) old.remove();
-    const lg = document.createElement("div"); lg.id = "territoryLegend"; lg.style.marginTop = "6px";
-    lg.innerHTML = "<div style='margin-bottom:4px;font-weight:600'>Territories</div>";
-
-    for (let idx=0; idx<TECHS.length; idx++){
-      const t = TECHS[idx];
-      const u = await computeTechUnion(t);
-      if (!u) continue;
-      const color = COLORS[idx % COLORS.length];
-
-      try { L.geoJSON(u, { style: { color, weight:0, fillColor: color, fillOpacity: 0.05 } }).addTo(allTechOverlays); } catch(e){}
-      let halo = null;
-      try { const line = turf.polygonToLine(u); halo = L.geoJSON(line, { style: { color:"#ffffff", weight:7, opacity:0.85, lineJoin:"round", lineCap:"round" } }); }
-      catch(e){ halo = L.geoJSON(u, { style: { color:"#ffffff", weight:7, opacity:0.85, lineJoin:"round", lineCap:"round" } }); }
-      halo.addTo(allTechOverlays);
-      let outline = null;
-      try { const line = turf.polygonToLine(u); outline = L.geoJSON(line, { style: { color, weight:3, opacity:1, lineJoin:"round", lineCap:"round" } }); }
-      catch(e){ outline = L.geoJSON(u, { style: { color, weight:3, opacity:1, lineJoin:"round", lineCap:"round" } }); }
-      outline.addTo(allTechOverlays);
-
-      try { const c = turf.centerOfMass(u).geometry.coordinates; const icon = L.divIcon({ className:"tech-center-label", iconSize: null, html:`<div class="tech-pill" style="color:${color}">${t.name}</div>` }); L.marker([c[1], c[0]], { icon }).addTo(allTechOverlays); } catch(e) {}
-
-      const row = document.createElement("div"); row.style.display = "flex"; row.style.alignItems = "center"; row.style.gap = "6px"; row.style.marginTop = "4px";
-      row.innerHTML = `<span style="display:inline-block;width:12px;height:3px;background:${color};border-radius:2px;"></span><span>${t.name}</span>`;
-      lg.appendChild(row);
-      await new Promise(r=>setTimeout(r));
-    }
-    legend.appendChild(lg);
-    if (!map.hasLayer(allTechOverlays)) allTechOverlays.addTo(map);
-    dimBaseZips();
-    hideBusy();
-  }
-
-  function clearAllTerritories(){
-    allTechOverlays.clearLayers();
-    if (map.hasLayer(allTechOverlays)) map.removeLayer(allTechOverlays);
-    const old = document.getElementById("territoryLegend"); if (old) old.remove();
-    restoreBaseZips();
-  }
+  // ----------------- Topbar actions -----------------
+  document.getElementById("clearAll").addEventListener("click", ()=>{ setAreaEdit(null,false); clearFocus(); clearSelection(); restoreBaseZips(); });
+  document.getElementById("resetData").addEventListener("click", resetDemo);
 
   const toggleAllBtn = document.getElementById("toggleAllTerritories");
-  toggleAllBtn.addEventListener("click", async () => {
+  toggleAllBtn.addEventListener("click", ()=>{
     allTerritoriesOn = !allTerritoriesOn;
-    if (allTerritoriesOn) { await buildAllTerritories(); toggleAllBtn.textContent = "Hide All Territories"; }
-    else { clearAllTerritories(); toggleAllBtn.textContent = "Show All Territories"; }
+    if (allTerritoriesOn){ rebuildAllTerritories(true); map.addLayer(allTerritoriesOverlays); toggleAllBtn.textContent="Hide All Territories"; }
+    else { allTerritoriesOverlays.clearLayers(); map.removeLayer(allTerritoriesOverlays); document.getElementById('territoryLegendRows').innerHTML=""; toggleAllBtn.textContent="Show All Territories"; }
   });
+
+  // ----------------- Always-visible AREAS -----------------
+  function rebuildAllAreas(force=false){
+    if (force){ map.removeLayer(allAreasOverlays); map.removeLayer(allAreasLabels); allAreasOverlays.clearLayers(); allAreasLabels.clearLayers(); allAreasOverlays.addTo(map); allAreasLabels.addTo(map); }
+    else { allAreasOverlays.clearLayers(); allAreasLabels.clearLayers(); }
+    document.getElementById('areasLegendRows').innerHTML = "Areas";
+    AREAS.forEach(a=>{
+      const u = areaUnion(a); if(!u) return;
+      // outline + light fill
+      try{ L.geoJSON(u,{pane:'areasPane', style:{color:"#54d2a3",weight:2,opacity:0.95,fillColor:"#54d2a3",fillOpacity:0.05}}).addTo(allAreasOverlays); }catch{}
+      // label
+      try{
+        const c=turf.centerOfMass(u).geometry.coordinates;
+        const icon=L.divIcon({ className:"tech-center-label", iconSize:null, html:`<div class="tech-pill" style="color:#54d2a3">${a.name}</div>` });
+        L.marker([c[1],c[0]],{icon, pane:'areasPane'}).addTo(allAreasLabels);
+      }catch{}
+      // legend row
+      const row=document.createElement("div"); row.className="row";
+      row.innerHTML=`<span style="display:inline-block;width:12px;height:3px;background:#54d2a3;border-radius:2px;"></span><span>${a.name}</span>`;
+      document.getElementById('areasLegendRows').appendChild(row);
+    });
+  }
+
+  // ----------------- Toggleable TERRITORIES -----------------
+  function rebuildAllTerritories(forceBringToFront=false){
+    if (!allTerritoriesOn) return;
+    if (forceBringToFront){ map.removeLayer(allTerritoriesOverlays); allTerritoriesOverlays.clearLayers(); allTerritoriesOverlays.addTo(map); }
+    else { allTerritoriesOverlays.clearLayers(); }
+    document.getElementById('territoryLegendRows').innerHTML = "Territories";
+
+    TECHS.forEach((t)=>{
+      if (!t.areaIds || !t.areaIds.length) return;
+      const color = colorForTech(t);
+      const u = techUnion(t); if(!u) return;
+
+      try{ L.geoJSON(u,{pane:'territoriesPane', style:{color,weight:0,fillColor:color,fillOpacity:0.06}}).addTo(allTerritoriesOverlays);}catch{}
+      let outline=null; try{ const line=turf.polygonToLine(u); outline=L.geoJSON(line,{pane:'territoriesPane', style:{color,weight:2,opacity:0.85}});}catch{ outline=L.geoJSON(u,{pane:'territoriesPane', style:{color,weight:2,opacity:0.85}});} outline.addTo(allTerritoriesOverlays);
+
+      const row=document.createElement("div"); row.className="row";
+      row.innerHTML=`<span style="display:inline-block;width:12px;height:3px;background:${color};border-radius:2px;"></span><span>${t.name}</span>`;
+      document.getElementById('territoryLegendRows').appendChild(row);
+    });
+  }
+
+  // ----------------- Render All -----------------
+  function renderAll(){ renderAreas(); renderTechs(); }
+
   </script>
 </body>
 </html>
