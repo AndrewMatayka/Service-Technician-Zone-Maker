@@ -15,7 +15,7 @@
   <style>
     :root{
       --bg:#0b1020; --panel:#11162a; --muted:#96a0b5; --text:#e5e7eb; --accent:#7dd3fc;
-      --card:#0f152a; --card-2:#101734; --border:#1f2a44;
+      --card:#0f152a; --border:#1f2a44;
     }
     *{box-sizing:border-box}
     html, body { height:100%; margin:0; background:var(--bg); color:var(--text);
@@ -84,6 +84,24 @@
     .tech-center-label, .tech-center-label * { pointer-events: none; }
     .tech-pill { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:999px; background:rgba(10,15,25,0.85); color:#fff; border:2px solid currentColor; box-shadow:0 0 0 2px rgba(255,255,255,0.70); white-space:nowrap; }
 
+    /* Distinct Area label style (flag) */
+    .area-center-label, .area-center-label * { pointer-events:none; }
+    .area-label-flag {
+      display:inline-block;
+      padding:3px 10px;
+      border:2px solid currentColor;
+      border-radius:6px;
+      font-size:11px;
+      font-weight:600;
+      letter-spacing:0.3px;
+      text-align:center;
+      white-space:nowrap;
+      box-shadow:0 0 6px rgba(0,0,0,0.45);
+      transform:translateY(-2px);
+      background:rgba(10,15,25,0.88);
+    }
+    .area-label-text { font-style:italic; color:inherit; }
+
     .legend { position:absolute; bottom:10px; left:10px; z-index:9999; background:rgba(17,22,42,0.96); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:12px; }
     .legend .row { display:flex; align-items:center; gap:6px; margin-top:4px; }
   </style>
@@ -104,7 +122,7 @@
           <input id="newAreaName" placeholder="New Area name (e.g., North Route)" />
           <button id="createArea" class="btn-primary btn">Create</button>
         </div>
-        <div class="tiny">Click <b>Edit</b> to toggle ZIPs (or use rectangle for bulk add/remove). Areas always follow ZIP boundaries.</div>
+        <div class="tiny">Click <b>Edit</b> to toggle ZIPs (or use rectangle for bulk add/remove). Areas follow ZIP boundaries.</div>
       </div>
       <div id="areasList" class="list"></div>
 
@@ -131,6 +149,7 @@
           <button id="clearAll" class="btn">Clear Highlights</button>
           <button id="toggleLabels" class="btn">Toggle ZIP Labels</button>
           <button id="toggleAllTerritories" class="btn">Show All Territories</button>
+          <button id="toggleOverlaps" class="btn">Highlight Overlaps</button>
           <button id="resetData" class="btn">Reset Demo Data</button>
         </div>
       </div>
@@ -158,11 +177,13 @@
 
         <div class="legend" id="legendBox">
           <div><span style="display:inline-block;width:10px;height:10px;background:#8ecae6;border:1px solid #1d3557;margin-right:6px;"></span>ZIP polygons</div>
-          <div><span style="display:inline-block;width:10px;height:3px;background:#54d2a3;margin-right:6px;"></span>Area outlines (always visible)</div>
+          <div><span style="display:inline-block;width:10px;height:3px;background:#999;margin-right:6px;"></span>Area outlines (always visible)</div>
           <div><span style="display:inline-block;width:10px;height:3px;background:#ff6d00;margin-right:6px;"></span>Per-ZIP edges (selection)</div>
           <div><span style="display:inline-block;width:10px;height:3px;background:#7dd3fc;margin-right:6px;"></span>Focus outline (Area/Tech)</div>
           <div id="areasLegendRows" style="margin-top:6px;font-weight:600">Areas</div>
           <div id="territoryLegendRows" style="margin-top:6px;font-weight:600"></div>
+          <div id="overlapLegendRow" style="margin-top:6px;"></div>
+          <div class="tiny" style="margin-top:6px;opacity:.85">When multiple techs share boundaries, their colored borders are <b>inset</b> (stacked) so all colors are visible.</div>
         </div>
       </div>
     </section>
@@ -170,8 +191,8 @@
 
   <script>
   // ----------------- Storage & Seed Data -----------------
-  const STORAGE_TECHS = "svc_techs_v7_assign_areas";
-  const STORAGE_AREAS = "svc_areas_v4_zipsets";
+  const STORAGE_TECHS = "svc_techs_v11_assign_areas";
+  const STORAGE_AREAS = "svc_areas_v7_zipsets";
 
   const DEFAULT_TECHS = [
     { id: 1, name: "Alex Rivera",  contact: "(312) 555-0142", notes:"", tags:[], areaIds:[1001] },
@@ -193,27 +214,26 @@
   }
   function saveTechs(){ try{ localStorage.setItem(STORAGE_TECHS, JSON.stringify(TECHS)); }catch{} }
   function saveAreas(){ try{ localStorage.setItem(STORAGE_AREAS, JSON.stringify(AREAS)); }catch{} }
-  function resetDemo(){ TECHS = JSON.parse(JSON.stringify(DEFAULT_TECHS)); AREAS = JSON.parse(JSON.stringify(DEFAULT_AREAS)); saveTechs(); saveAreas(); renderAll(); rebuildAllAreas(true); if(allTerritoriesOn) rebuildAllTerritories(true); }
+  function resetDemo(){ TECHS = JSON.parse(JSON.stringify(DEFAULT_TECHS)); AREAS = JSON.parse(JSON.stringify(DEFAULT_AREAS)); saveTechs(); saveAreas(); renderAll(); rebuildAllAreas(true); if(allTerritoriesOn){ rebuildAllTerritories(true); if (overlapOn) rebuildOverlaps(true);} }
 
   // ----------------- Map & Panes -----------------
   const map = L.map("map", { zoomSnap:0.5 }).setView([41.5,-88.0], 8);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution:'&copy; OSM & CARTO' }).addTo(map);
 
-  // Create panes to control z-index
-  map.createPane('areasPane');        // 360 (always-visible areas)
-  map.getPane('areasPane').style.zIndex = 360;
-  map.createPane('territoriesPane');  // 350 (toggle)
-  map.getPane('territoriesPane').style.zIndex = 350;
-  map.createPane('baseZipPane');      // 340 (zip polygons)
-  map.getPane('baseZipPane').style.zIndex = 340;
-  map.createPane('selectionPane');    // 450
-  map.getPane('selectionPane').style.zIndex = 450;
-  map.createPane('focusPane');        // 500
-  map.getPane('focusPane').style.zIndex = 500;
-  map.createPane('labelPane');        // 520 (ZIP labels)
-  map.getPane('labelPane').style.zIndex = 520;
+  map.createPane('areasPane');            map.getPane('areasPane').style.zIndex = 360;
+  map.createPane('territoriesPane');      map.getPane('territoriesPane').style.zIndex = 420; // ABOVE areas
+  map.createPane('territoriesLabelPane'); map.getPane('territoriesLabelPane').style.zIndex = 440;
+  map.createPane('overlapsPane');         map.getPane('overlapsPane').style.zIndex = 460; // ABOVE territories
+  map.createPane('baseZipPane');          map.getPane('baseZipPane').style.zIndex = 340;
+  map.createPane('selectionPane');        map.getPane('selectionPane').style.zIndex = 450;
+  map.createPane('focusPane');            map.getPane('focusPane').style.zIndex = 500;
+  map.createPane('labelPane');            map.getPane('labelPane').style.zIndex = 520;
+  // NEW: dedicated high-priority pane for area labels so they never sit under lines
+  map.createPane('areaLabelsPane');       map.getPane('areaLabelsPane').style.zIndex = 530;
 
-  const COLORS = ["#e11d48","#22c55e","#3b82f6","#a855f7","#f59e0b","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#8b5cf6","#ef4444"];
+  // Palettes
+  const TECH_COLORS  = ["#e11d48","#22c55e","#3b82f6","#a855f7","#f59e0b","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#8b5cf6","#ef4444"];
+  const AREA_COLORS  = ["#54d2a3","#f59e0b","#60a5fa","#f43f5e","#8b5cf6","#22c55e","#f97316","#06b6d4","#84cc16","#eab308","#e879f9","#94a3b8"];
 
   // ZIP base layer
   const zipLayer = L.geoJSON(null, {
@@ -235,9 +255,9 @@
   }).addTo(map);
 
   // Focus overlays (for View Area / View Territory)
-  const focusFill    = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#7dd3fc", weight:0, fillColor:"#7dd3fc", fillOpacity:0.10 } }).addTo(map);
-  const focusHalo    = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#ffffff", weight:7, opacity:0.9, fillOpacity:0 } }).addTo(map);
-  const focusOutline = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#7dd3fc", weight:3, opacity:1, fillOpacity:0 } }).addTo(map);
+  const focusFill    = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#13293d", weight:0, fillColor:"#13293d", fillOpacity:0.12 } }).addTo(map);
+  const focusHalo    = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#ffffff", weight:8, opacity:0.95, fillOpacity:0 } }).addTo(map);
+  const focusOutline = L.geoJSON(null, { pane:'focusPane', interactive:false, style:{ color:"#0ea5e9", weight:4, opacity:1, fillOpacity:0 } }).addTo(map);
   let focusLabel = null;
 
   // Selection overlays
@@ -247,13 +267,18 @@
   const selOutline     = L.geoJSON(null, { pane:'selectionPane', interactive:false, style:{ color:"#7dd3fc", weight:3, opacity:1 } }).addTo(map);
   let selectionLabel = null;
 
-  // Always-visible AREAS overlay + labels
+  // Always-visible AREAS overlay + labels (labels on their own pane)
   const allAreasOverlays = L.layerGroup([], { pane:'areasPane' }).addTo(map);
-  const allAreasLabels   = L.layerGroup([], { pane:'areasPane' }).addTo(map);
+  const allAreasLabels   = L.layerGroup([], { pane:'areaLabelsPane' }).addTo(map);
 
-  // Toggleable TECH territories
+  // Toggleable TECH territories + labels
   const allTerritoriesOverlays = L.layerGroup([], { pane:'territoriesPane' });
+  const allTerritoriesLabels   = L.layerGroup([], { pane:'territoriesLabelPane' });
   let allTerritoriesOn = false;
+
+  // Overlap layer (above territories)
+  const overlapLayer = L.layerGroup([], { pane:'overlapsPane' });
+  let overlapOn = false;
 
   // ZIP labels toggle
   const labelsLayer = L.layerGroup([], { pane:'labelPane' }).addTo(map);
@@ -302,6 +327,7 @@
   loadData().catch(console.error);
 
   // ----------------- Helpers -----------------
+  const INSET_STEP_KM = 0.18; // ~180m inward per stacked outline
   function showBusy(msg){ const el=document.getElementById('busy'); const m=document.getElementById('busyMsg'); if(m) m.textContent=msg||'Processing…'; if(el) el.style.display='block'; }
   function hideBusy(){ const el=document.getElementById('busy'); if(el) el.style.display='none'; }
   function toast(msg){
@@ -330,6 +356,54 @@
     return u || null;
   }
 
+  // -------------- SVG Pattern Utilities (cross-hatch) --------------
+  function ensureSvgDefs(){
+    const pane = map.getPane('overlayPane') || map.getPane('focusPane') || map.getPane('areasPane');
+    const svgs = (pane || document).getElementsByTagName('svg');
+    const svg = svgs[0];
+    if (!svg) return null;
+    let defs = svg.querySelector('defs');
+    if (!defs){ defs = document.createElementNS('http://www.w3.org/2000/svg','defs'); svg.insertBefore(defs, svg.firstChild); }
+    return defs;
+  }
+
+  function makeHatchPattern(id, color, spacing=8, strokeWidth=1){
+    const defs = ensureSvgDefs(); if(!defs) return;
+    const old = document.getElementById(id); if(old) old.remove();
+
+    const pattern = document.createElementNS('http://www.w3.org/2000/svg','pattern');
+    pattern.setAttribute('id', id);
+    pattern.setAttribute('patternUnits','userSpaceOnUse');
+    pattern.setAttribute('width', spacing);
+    pattern.setAttribute('height', spacing);
+
+    const line1 = document.createElementNS('http://www.w3.org/2000/svg','path');
+    line1.setAttribute('d', `M 0 0 L ${spacing} ${spacing}`);
+    line1.setAttribute('stroke', color);
+    line1.setAttribute('stroke-opacity', '0.35');
+    line1.setAttribute('stroke-width', String(strokeWidth));
+
+    const line2 = document.createElementNS('http://www.w3.org/2000/svg','path');
+    line2.setAttribute('d', `M ${spacing} 0 L 0 ${spacing}`);
+    line2.setAttribute('stroke', color);
+    line2.setAttribute('stroke-opacity', '0.35');
+    line2.setAttribute('stroke-width', String(strokeWidth));
+
+    pattern.appendChild(line1);
+    pattern.appendChild(line2);
+    defs.appendChild(pattern);
+  }
+
+  function applyHatchToLayerGroup(layerGroup, patternId, baseColor="#13293d"){
+    layerGroup.eachLayer(l=>{
+      if (l && l._path){
+        l._path.setAttribute('fill', `url(#${patternId})`);
+        l._path.setAttribute('fill-opacity', '1');
+        try { l.setStyle({ fillColor: baseColor, fillOpacity: 0.03 }); } catch {}
+      }
+    });
+  }
+
   // ----------------- Focus Rendering -----------------
   const cache = { areaUnion:new Map(), techUnion:new Map() };
 
@@ -346,7 +420,8 @@
     const u = unionOfFeatures(feats);
     cache.techUnion.set(key,u); return u;
   }
-  function colorForTech(tech){ const idx = TECHS.findIndex(t=>t.id===tech.id); return COLORS[idx>=0?idx%COLORS.length:0]; }
+  function colorForTech(t){ const idx = TECHS.findIndex(x=>x.id===t.id); return TECH_COLORS[idx>=0?idx%TECH_COLORS.length:0]; }
+  function colorForArea(a){ const idx = AREAS.findIndex(x=>x.id===a.id); return AREA_COLORS[idx>=0?idx%AREA_COLORS.length:0]; }
 
   function clearFocus(){
     focusFill.clearLayers(); focusHalo.clearLayers(); focusOutline.clearLayers();
@@ -357,13 +432,22 @@
     if (selectionLabel){ map.removeLayer(selectionLabel); selectionLabel=null; }
   }
 
-  function renderFocusFeature(u, labelText, color){
+  function renderFocusFeature(u, labelText, color, useHatch=false){
     clearSelection(); clearFocus();
     if (!u) { restoreBaseZips(); return; }
-    focusFill.setStyle({ color, fillColor: color, weight: 0, fillOpacity: 0.10 });
+
+    focusFill.setStyle({ color:"#13293d", fillColor:"#13293d", weight:0, fillOpacity:0.12 });
     focusFill.addData(u);
-    try { const line=turf.polygonToLine(u); focusHalo.addData(line); focusOutline.setStyle({ color, weight:3, opacity:1 }); focusOutline.addData(line); }
-    catch { focusHalo.addData(u); focusOutline.setStyle({ color, weight:3, opacity:1 }); focusOutline.addData(u); }
+
+    if (useHatch){
+      const pid = `focus-hatch-${color.replace('#','')}`;
+      makeHatchPattern(pid, color, 8, 1.25);
+      applyHatchToLayerGroup(focusFill, pid, "#13293d");
+    }
+
+    try { const line=turf.polygonToLine(u); focusHalo.addData(line); focusOutline.setStyle({ color: color, weight:4, opacity:1, lineJoin:'round' }); focusOutline.addData(line); }
+    catch { focusHalo.addData(u); focusOutline.setStyle({ color: color, weight:4, opacity:1, lineJoin:'round' }); focusOutline.addData(u); }
+
     try {
       const c=turf.centerOfMass(u).geometry.coordinates;
       const icon=L.divIcon({ className:"tech-center-label", iconSize:null, html:`<div class="tech-pill" style="color:${color}">${labelText}</div>` });
@@ -466,7 +550,7 @@
       const head=document.createElement("div"); head.className="item-header";
 
       const left=document.createElement("div"); left.style.display="flex"; left.style.alignItems="center"; left.style.gap="8px";
-      const sw=document.createElement("span"); sw.style.cssText=`display:inline-block;width:12px;height:12px;border-radius:3px;background:#54d2a3;`;
+      const sw=document.createElement("span"); sw.style.cssText=`display:inline-block;width:12px;height:12px;border-radius:3px;background:${colorForArea(a)};`;
       const nm=document.createElement("span"); nm.className="item-name"; nm.textContent=a.name;
       const meta=document.createElement("span"); meta.className="tiny"; meta.textContent=`${a.zips.length} ZIPs`;
       left.append(sw,nm,meta);
@@ -505,7 +589,7 @@
         if(!confirm(`Delete area "${a.name}"?`)) return;
         TECHS.forEach(t=>{ t.areaIds = (t.areaIds||[]).filter(id=>id!==a.id); });
         AREAS = AREAS.filter(x=>x.id!==a.id); saveAreas(); saveTechs();
-        setAreaEdit(null,false); clearFocus(); renderAll(); rebuildAllAreas(true); if(allTerritoriesOn) rebuildAllTerritories(true);
+        setAreaEdit(null,false); clearFocus(); renderAll(); rebuildAllAreas(true); if(allTerritoriesOn){ rebuildAllTerritories(true); if (overlapOn) rebuildOverlaps(true); }
       });
       modeAdd.addEventListener("click", ()=>{ AREA_EDIT_CTX.mode="add"; toast("Bulk mode: Add"); });
       modeRem.addEventListener("click", ()=>{ AREA_EDIT_CTX.mode="remove"; toast("Bulk mode: Remove"); });
@@ -516,7 +600,7 @@
 
   function renderAreaFocus(area){
     const u = areaUnion(area);
-    renderFocusFeature(u, area.name, "#7dd3fc");
+    renderFocusFeature(u, area.name, "#0ea5e9", false);
   }
 
   function setAreaEdit(areaOrNull, enable){
@@ -526,10 +610,9 @@
     AREA_EDIT_CTX.mode="add";
     renderAreas();
     renderAreaFocus(areaOrNull);
-    refreshZipStyles(); // emphasize selected zips in this area
+    refreshZipStyles();
   }
 
-  // Emphasize assigned ZIPs while editing this area
   function refreshZipStyles(){
     const edit = AREA_EDIT_CTX.active ? AREA_EDIT_CTX.area : null;
     zipLayer.eachLayer(l=>{
@@ -547,6 +630,7 @@
     saveAreas(); renderAreas(); refreshZipStyles();
     rebuildAllAreas();
     if (allTerritoriesOn) rebuildAllTerritories();
+    if (overlapOn) rebuildOverlaps();
     if (focusLabel) renderAreaFocus(area);
   }
 
@@ -571,7 +655,7 @@
     if(!name){ addMsg.textContent="Name is required."; return; }
     const id=Date.now()+Math.random(); TECHS.push({id,name,contact,notes,tags,areaIds:[]}); saveTechs();
     addMsg.textContent="Technician added."; addName.value=""; addContact.value=""; addNotes.value=""; addTags.value="";
-    renderTechs(); if(allTerritoriesOn) rebuildAllTerritories(true);
+    renderTechs(); if (allTerritoriesOn) rebuildAllTerritories(true); if (overlapOn) rebuildOverlaps(true);
   });
 
   function parseTags(text){ const raw=(text||"").trim(); if(!raw) return []; return Array.from(new Set(raw.split(/[,\s]+/).map(s=>s.trim()).filter(Boolean))); }
@@ -608,7 +692,6 @@
       if (t.contact){ const c=document.createElement("div"); c.className="tiny"; c.textContent=t.contact; card.appendChild(c); }
       if (t.notes){ const n=document.createElement("div"); n.className="tiny"; n.textContent=`Notes: ${t.notes}`; card.appendChild(n); }
 
-      // Area multi-select
       const assignRow=document.createElement("div"); assignRow.className="row";
       const sel=document.createElement("select"); sel.multiple=true; sel.size= Math.min(8, Math.max(3, AREAS.length));
       AREAS.forEach(a=>{
@@ -619,21 +702,23 @@
       const saveBtn=document.createElement("button"); saveBtn.className="btn-primary btn"; saveBtn.textContent="Save Areas";
       assignRow.append(sel, saveBtn); card.appendChild(assignRow);
 
-      // ZIP summary
       const zipRow=document.createElement("div"); zipRow.className="zip-list";
       zips.slice(0,60).forEach(z=>{ const pill=document.createElement("span"); pill.className="zip-pill"; pill.textContent=z; zipRow.appendChild(pill); });
       if (zips.length>60){ const more=document.createElement("span"); more.className="tiny"; more.textContent=` +${zips.length-60} more`; zipRow.appendChild(more); }
       card.appendChild(zipRow);
 
-      bView.addEventListener("click", ()=>{ const u=techUnion(t); renderFocusFeature(u, t.name, colorForTech(t)); });
+      bView.addEventListener("click", ()=>{
+        const u=techUnion(t);
+        renderFocusFeature(u, t.name, colorForTech(t), true);
+      });
       bCopy.addEventListener("click", ()=> copyToClipboard(zips, t.name));
       bDel.addEventListener("click", ()=>{
         if(!confirm(`Delete ${t.name}?`)) return;
-        TECHS = TECHS.filter(x=>x.id!==t.id); saveTechs(); renderTechs(); clearFocus(); if(allTerritoriesOn) rebuildAllTerritories();
+        TECHS = TECHS.filter(x=>x.id!==t.id); saveTechs(); renderTechs(); clearFocus(); if(allTerritoriesOn) rebuildAllTerritories(); if (overlapOn) rebuildOverlaps();
       });
       saveBtn.addEventListener("click", ()=>{
         const ids = Array.from(sel.selectedOptions).map(o=>Number(o.value));
-        t.areaIds = ids; saveTechs(); cache.techUnion.clear(); renderTechs(); if(allTerritoriesOn) rebuildAllTerritories(true);
+        t.areaIds = ids; saveTechs(); cache.techUnion.clear(); renderTechs(); if(allTerritoriesOn) rebuildAllTerritories(true); if (overlapOn) rebuildOverlaps(true);
         toast(`Saved areas for ${t.name}`);
       });
 
@@ -650,51 +735,198 @@
   const toggleAllBtn = document.getElementById("toggleAllTerritories");
   toggleAllBtn.addEventListener("click", ()=>{
     allTerritoriesOn = !allTerritoriesOn;
-    if (allTerritoriesOn){ rebuildAllTerritories(true); map.addLayer(allTerritoriesOverlays); toggleAllBtn.textContent="Hide All Territories"; }
-    else { allTerritoriesOverlays.clearLayers(); map.removeLayer(allTerritoriesOverlays); document.getElementById('territoryLegendRows').innerHTML=""; toggleAllBtn.textContent="Show All Territories"; }
+    if (allTerritoriesOn){
+      rebuildAllTerritories(true);
+      map.addLayer(allTerritoriesOverlays);
+      map.addLayer(allTerritoriesLabels);
+      toggleAllBtn.textContent="Hide All Territories";
+      if (overlapOn) rebuildOverlaps(true);
+    } else {
+      allTerritoriesOverlays.clearLayers();
+      allTerritoriesLabels.clearLayers();
+      overlapLayer.clearLayers(); map.removeLayer(overlapLayer); overlapOn = false; document.getElementById("toggleOverlaps").textContent="Highlight Overlaps";
+      map.removeLayer(allTerritoriesOverlays);
+      map.removeLayer(allTerritoriesLabels);
+      document.getElementById('territoryLegendRows').innerHTML="";
+      document.getElementById('overlapLegendRow').innerHTML="";
+      toggleAllBtn.textContent="Show All Territories";
+    }
+  });
+
+  const toggleOverlapBtn = document.getElementById("toggleOverlaps");
+  toggleOverlapBtn.addEventListener("click", ()=>{
+    if (!allTerritoriesOn){
+      allTerritoriesOn = true;
+      rebuildAllTerritories(true);
+      map.addLayer(allTerritoriesOverlays);
+      map.addLayer(allTerritoriesLabels);
+      toggleAllBtn.textContent="Hide All Territories";
+    }
+    overlapOn = !overlapOn;
+    if (overlapOn){
+      rebuildOverlaps(true);
+      map.addLayer(overlapLayer);
+      toggleOverlapBtn.textContent="Hide Overlaps";
+    } else {
+      overlapLayer.clearLayers(); map.removeLayer(overlapLayer);
+      document.getElementById('overlapLegendRow').innerHTML="";
+      toggleOverlapBtn.textContent="Highlight Overlaps";
+    }
   });
 
   // ----------------- Always-visible AREAS -----------------
   function rebuildAllAreas(force=false){
-    if (force){ map.removeLayer(allAreasOverlays); map.removeLayer(allAreasLabels); allAreasOverlays.clearLayers(); allAreasLabels.clearLayers(); allAreasOverlays.addTo(map); allAreasLabels.addTo(map); }
-    else { allAreasOverlays.clearLayers(); allAreasLabels.clearLayers(); }
-    document.getElementById('areasLegendRows').innerHTML = "Areas";
+    if (force){
+      map.removeLayer(allAreasOverlays); map.removeLayer(allAreasLabels);
+      allAreasOverlays.clearLayers(); allAreasLabels.clearLayers();
+      allAreasOverlays.addTo(map); allAreasLabels.addTo(map);
+    } else {
+      allAreasOverlays.clearLayers(); allAreasLabels.clearLayers();
+    }
+    const legend = document.getElementById('areasLegendRows');
+    legend.innerHTML = "Areas";
     AREAS.forEach(a=>{
       const u = areaUnion(a); if(!u) return;
-      // outline + light fill
-      try{ L.geoJSON(u,{pane:'areasPane', style:{color:"#54d2a3",weight:2,opacity:0.95,fillColor:"#54d2a3",fillOpacity:0.05}}).addTo(allAreasOverlays); }catch{}
-      // label
+      const color = colorForArea(a);
+
+      try{ L.geoJSON(u,{pane:'areasPane', interactive:false, style:{color,weight:2,opacity:0.9,fillColor:color,fillOpacity:0.05}}).addTo(allAreasOverlays); }catch{}
+
       try{
         const c=turf.centerOfMass(u).geometry.coordinates;
-        const icon=L.divIcon({ className:"tech-center-label", iconSize:null, html:`<div class="tech-pill" style="color:#54d2a3">${a.name}</div>` });
-        L.marker([c[1],c[0]],{icon, pane:'areasPane'}).addTo(allAreasLabels);
+        const icon = L.divIcon({
+          className: "area-center-label",
+          iconSize: null,
+          html: `
+            <div class="area-label-flag" style="border-color:${color}">
+              <span class="area-label-text" style="color:${color}">${a.name}</span>
+            </div>`
+        });
+        L.marker([c[1],c[0]],{icon, pane:'areaLabelsPane', interactive:false}).addTo(allAreasLabels);
       }catch{}
-      // legend row
+
       const row=document.createElement("div"); row.className="row";
-      row.innerHTML=`<span style="display:inline-block;width:12px;height:3px;background:#54d2a3;border-radius:2px;"></span><span>${a.name}</span>`;
-      document.getElementById('areasLegendRows').appendChild(row);
+      row.innerHTML=`<span style="display:inline-block;width:12px;height:3px;background:${color};border-radius:2px;"></span><span>${a.name}</span>`;
+      legend.appendChild(row);
     });
   }
 
-  // ----------------- Toggleable TERRITORIES -----------------
+  // ----------------- Toggleable TERRITORIES with INSET OUTLINES -----------------
   function rebuildAllTerritories(forceBringToFront=false){
     if (!allTerritoriesOn) return;
-    if (forceBringToFront){ map.removeLayer(allTerritoriesOverlays); allTerritoriesOverlays.clearLayers(); allTerritoriesOverlays.addTo(map); }
-    else { allTerritoriesOverlays.clearLayers(); }
-    document.getElementById('territoryLegendRows').innerHTML = "Territories";
+    if (forceBringToFront){
+      map.removeLayer(allTerritoriesOverlays); map.removeLayer(allTerritoriesLabels);
+      allTerritoriesOverlays.clearLayers(); allTerritoriesLabels.clearLayers();
+      allTerritoriesOverlays.addTo(map); allTerritoriesLabels.addTo(map);
+    } else {
+      allTerritoriesOverlays.clearLayers(); allTerritoriesLabels.clearLayers();
+    }
+    const legend = document.getElementById('territoryLegendRows');
+    legend.innerHTML = "Territories";
 
-    TECHS.forEach((t)=>{
-      if (!t.areaIds || !t.areaIds.length) return;
+    const techsWithArea = TECHS.filter(t=> (t.areaIds||[]).length>0);
+    const ordered = techsWithArea.map((t,i)=>({t, idx:i}));
+
+    ordered.forEach(({t, idx})=>{
       const color = colorForTech(t);
       const u = techUnion(t); if(!u) return;
 
-      try{ L.geoJSON(u,{pane:'territoriesPane', style:{color,weight:0,fillColor:color,fillOpacity:0.06}}).addTo(allTerritoriesOverlays);}catch{}
-      let outline=null; try{ const line=turf.polygonToLine(u); outline=L.geoJSON(line,{pane:'territoriesPane', style:{color,weight:2,opacity:0.85}});}catch{ outline=L.geoJSON(u,{pane:'territoriesPane', style:{color,weight:2,opacity:0.85}});} outline.addTo(allTerritoriesOverlays);
+      // Fill + hatch (darker and above areas)
+      let polyGroup=null;
+      try{
+        polyGroup = L.geoJSON(u,{pane:'territoriesPane', interactive:false, style:{color:"#13293d",weight:0,fillColor:"#13293d",fillOpacity:0.12}});
+        polyGroup.addTo(allTerritoriesOverlays);
+      }catch{}
+
+      const pid = `tech-hatch-${t.id}`;
+      makeHatchPattern(pid, color, 8, 1.25);
+      if (polyGroup) applyHatchToLayerGroup(polyGroup, pid, "#13293d");
+
+      // INSET outline = negative buffer by idx * step
+      let outlineGeom = null;
+      const shrinkKm = Math.max(0, idx) * INSET_STEP_KM;
+      try{
+        outlineGeom = shrinkKm>0 ? turf.buffer(u, -shrinkKm, {units:'kilometers'}) : u;
+        try{ outlineGeom = turf.simplify(outlineGeom,{tolerance:0.0008, highQuality:true}); }catch{}
+      }catch{ outlineGeom = u; }
+
+      let outline = null;
+      try{ const line=turf.polygonToLine(outlineGeom); outline=L.geoJSON(line,{pane:'territoriesPane', interactive:false, style:{color:color,weight:4,opacity:1,lineJoin:'round'}});}
+      catch{ outline=L.geoJSON(outlineGeom,{pane:'territoriesPane', interactive:false, style:{color:color,weight:4,opacity:1,lineJoin:'round'}});}
+      outline.addTo(allTerritoriesOverlays);
+
+      // Label
+      try{
+        const c=turf.centerOfMass(u).geometry.coordinates;
+        const icon=L.divIcon({ className:"tech-center-label", iconSize:null, html:`<div class="tech-pill" style="color:${color}">${t.name}</div>` });
+        L.marker([c[1],c[0]],{icon, pane:'territoriesLabelPane', interactive:false}).addTo(allTerritoriesLabels);
+      }catch{}
 
       const row=document.createElement("div"); row.className="row";
       row.innerHTML=`<span style="display:inline-block;width:12px;height:3px;background:${color};border-radius:2px;"></span><span>${t.name}</span>`;
-      document.getElementById('territoryLegendRows').appendChild(row);
+      legend.appendChild(row);
     });
+
+    if (overlapOn) rebuildOverlaps();
+  }
+
+  // ----------------- Overlap Builder (ZIP-based) -----------------
+  function rebuildOverlaps(force=false){
+    if (!allTerritoriesOn) return;
+    if (force){ map.removeLayer(overlapLayer); overlapLayer.clearLayers(); overlapLayer.addTo(map); }
+    else { overlapLayer.clearLayers(); }
+
+    const zipToTechs = new Map();
+    TECHS.forEach(t=>{
+      const zips = derivedZipsForTech(t);
+      zips.forEach(z=>{
+        if (!zipToTechs.has(z)) zipToTechs.set(z, []);
+        zipToTechs.get(z).push(t.name);
+      });
+    });
+
+    const overlappingFeatures = [];
+    zipLayer.eachLayer(l=>{
+      const z = String(l.feature?.properties?.zip||""); if(!z) return;
+      const names = zipToTechs.get(z);
+      if (names && names.length>=2){
+        const f = JSON.parse(JSON.stringify(l.feature));
+        f.properties._techNames = names;
+        overlappingFeatures.push(f);
+      }
+    });
+
+    const legend = document.getElementById('overlapLegendRow');
+    if (!overlappingFeatures.length){
+      legend.innerHTML = "<div class='tiny'>No overlaps detected.</div>";
+      return;
+    } else {
+      legend.innerHTML = `<div class="row"><span style="display:inline-block;width:12px;height:3px;background:#f43f5e;border-radius:2px;"></span><span>Overlap (2+ techs)</span></div>`;
+    }
+
+    const overlapColor = "#f43f5e";
+    const pid = `overlap-hatch`;
+    makeHatchPattern(pid, overlapColor, 6, 1.2);
+
+    const perZipLayer = L.geoJSON({type:"FeatureCollection", features:overlappingFeatures},{
+      pane:'overlapsPane',
+      interactive:false,
+      style:{ color:overlapColor, weight:2, opacity:0.9, fillColor:"#5a1120", fillOpacity:0.18 }
+    }).addTo(overlapLayer);
+
+    applyHatchToLayerGroup(perZipLayer, pid, "#5a1120");
+
+    perZipLayer.eachLayer(l=>{
+      const names = l.feature?.properties?._techNames||[];
+      const z = l.feature?.properties?.zip||"";
+      if (names.length){
+        l.bindTooltip(`<b>${z}</b><br/>Overlap: ${names.join(", ")}`, {direction:"top", opacity:0.95});
+      }
+    });
+
+    try{
+      const bb = perZipLayer.getBounds();
+      if (bb && bb.isValid() && force){ map.fitBounds(bb, { padding:[20,20] }); }
+    }catch{}
   }
 
   // ----------------- Render All -----------------
